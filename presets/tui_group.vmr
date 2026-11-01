@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- TUI group: the TUI airlines share one livery. TUI fly Netherlands (TFL) 737 MAX and TUI fly Nordic (BLX) 737-800 shown in the colours of the other TUI airlines. -->
+<ModelMatchRule CallsignPrefix="TFL" TypeCode="B38M" ModelName="B38MTUI//B38MTOM" />
+<ModelMatchRule CallsignPrefix="BLX" TypeCode="B738" ModelName="B738TUIS//B738TOMS" />
+</ModelMatchRuleSet>

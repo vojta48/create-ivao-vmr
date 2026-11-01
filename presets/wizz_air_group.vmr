@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- Wizz Air group: Wizz Air UK (WUK) and Wizz Air Malta (WMT) aircraft without a livery of their own in the MTL, shown in Wizz Air colours. -->
+<ModelMatchRule CallsignPrefix="WUK" TypeCode="A20N" ModelName="A20NWZZ" />
+<ModelMatchRule CallsignPrefix="WMT" TypeCode="A321" ModelName="A321WZZWL" />
+</ModelMatchRuleSet>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- Lufthansa group: Lufthansa Regional flights (DLH callsign) on Air Dolomiti Embraers and CityLine CRJ900s, Lufthansa CityLine (CLH) Airbuses in Lufthansa colours, Eurowings Europe (EWE) in Eurowings colours. -->
+<ModelMatchRule CallsignPrefix="DLH" TypeCode="E190" ModelName="E190DLA" />
+<ModelMatchRule CallsignPrefix="DLH" TypeCode="E195" ModelName="E195DLA" />
+<ModelMatchRule CallsignPrefix="DLH" TypeCode="CRJ9" ModelName="CRJ9CLH2" />
+<ModelMatchRule CallsignPrefix="CLH" TypeCode="A319" ModelName="A319DLH3" />
+<ModelMatchRule CallsignPrefix="CLH" TypeCode="A320" ModelName="A320DLH3//A320DLHWL3" />
+<ModelMatchRule CallsignPrefix="CLH" TypeCode="A20N" ModelName="A20NDLH" />
+<ModelMatchRule CallsignPrefix="CLH" TypeCode="A21N" ModelName="A21NDLH" />
+<ModelMatchRule CallsignPrefix="EWE" TypeCode="A319" ModelName="A319EWG" />
+<ModelMatchRule CallsignPrefix="EWE" TypeCode="A321" ModelName="A321EWG" />
+<ModelMatchRule CallsignPrefix="EWE" TypeCode="A20N" ModelName="A20NEWG" />
+<ModelMatchRule CallsignPrefix="EWE" TypeCode="A21N" ModelName="A21NEWG" />
+</ModelMatchRuleSet>

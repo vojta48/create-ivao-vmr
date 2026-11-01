@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- easyJet group: easyJet Europe (EJU) and easyJet Switzerland (EZS) Airbus neos without a livery of their own in the MTL, shown in easyJet colours. -->
+<ModelMatchRule CallsignPrefix="EJU" TypeCode="A21N" ModelName="A21NEZY" />
+<ModelMatchRule CallsignPrefix="EZS" TypeCode="A20N" ModelName="A20NEZY" />
+<ModelMatchRule CallsignPrefix="EZS" TypeCode="A21N" ModelName="A21NEZY" />
+</ModelMatchRuleSet>

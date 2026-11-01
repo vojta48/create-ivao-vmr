@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- Air France-KLM group: KLM flights (KLM callsign) on KLM Cityhopper Embraers, Air France flights (AFR callsign) on HOP! Embraers, CRJs and ATRs. -->
+<ModelMatchRule CallsignPrefix="KLM" TypeCode="E175" ModelName="E175KLC" />
+<ModelMatchRule CallsignPrefix="KLM" TypeCode="E190" ModelName="E190KLC//E190KLC2//E190KLC3" />
+<ModelMatchRule CallsignPrefix="KLM" TypeCode="E195" ModelName="E195KLC" />
+<ModelMatchRule CallsignPrefix="AFR" TypeCode="E170" ModelName="E170HOP" />
+<ModelMatchRule CallsignPrefix="AFR" TypeCode="E190" ModelName="E190HOP" />
+<ModelMatchRule CallsignPrefix="AFR" TypeCode="CRJ7" ModelName="CRJ7HOP" />
+<ModelMatchRule CallsignPrefix="AFR" TypeCode="CRJX" ModelName="CRJXHOP" />
+<ModelMatchRule CallsignPrefix="AFR" TypeCode="AT76" ModelName="AT76HOP" />
+</ModelMatchRuleSet>

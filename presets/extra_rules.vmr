@@ -1,18 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?> 
+<?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
+<!-- Liveries missing from the IVAO MTL, substituted with a similar one. Place before the IVAO MTL rules. -->
 <ModelMatchRule CallsignPrefix="SWR" TypeCode="BCS3" ModelName="BCS3SWR" />
 <ModelMatchRule CallsignPrefix="EDW" TypeCode="BCS3" ModelName="BCS3SWR" />
-<ModelMatchRule CallsignPrefix="RYR" TypeCode="A320" ModelName="A320LDA" /> 
-<ModelMatchRule CallsignPrefix="SWR" TypeCode="E190" ModelName="E190OAW" /> 
+<ModelMatchRule CallsignPrefix="RYR" TypeCode="A320" ModelName="A320LDA" />
+<ModelMatchRule CallsignPrefix="SWR" TypeCode="E190" ModelName="E190OAW" />
 <ModelMatchRule CallsignPrefix="NGB" TypeCode="MD11" ModelName="MD11WGN2" />
-<ModelMatchRule CallsignPrefix="KLM" TypeCode="E175" ModelName="E175KLC" /> 
-<ModelMatchRule CallsignPrefix="KLM" TypeCode="E190" ModelName="E190KLC//E190KLC2//E190KLC3" /> 
-<ModelMatchRule CallsignPrefix="KLM" TypeCode="E195" ModelName="E195KLC" /> 
-<ModelMatchRule CallsignPrefix="BEL" TypeCode="BCS3" ModelName="BCS3BTI" /> 
-<ModelMatchRule CallsignPrefix="AUA" TypeCode="BCS3" ModelName="BCS3BTI" /> 
-<ModelMatchRule CallsignPrefix="DLH" TypeCode="BCS3" ModelName="BCS3BTI" /> 
-<ModelMatchRule CallsignPrefix="ASL" TypeCode="BCS3" ModelName="BCS3BTI" />
-<ModelMatchRule CallsignPrefix="DLH" TypeCode="E190" ModelName="E190DLA" /> 
-<ModelMatchRule CallsignPrefix="DLH" TypeCode="E195" ModelName="E195DLA" />  
-</ModelMatchRuleSet> 
-<!-- to be used with IVAO MTL library for extra / not included model matching. Place as first priority before IVAO MTL -->
+</ModelMatchRuleSet>

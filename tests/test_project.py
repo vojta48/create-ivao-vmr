@@ -23,7 +23,7 @@ class PresetFilesTest(unittest.TestCase):
         self.assertTrue(files)
         for path in files:
             text = path.read_text(encoding="utf-8")
-            ET.fromstring(text.split("<!--")[0].split("?>", 1)[-1].strip())  # well-formed
+            ET.fromstring(text.strip())  # well-formed XML, the description comment inside the root element
             rules = vmr_gui.parse_vmr(text)
             self.assertTrue(rules, path.name)
             for rule in rules:
@@ -33,6 +33,27 @@ class PresetFilesTest(unittest.TestCase):
             # a second rule with the same callsign and type would never be used by vPilot
             twice = [k for k, n in Counter((r["callsign"], r["type"]) for r in rules).items() if n > 1]
             self.assertEqual(twice, [], path.name)
+
+    def test_presets_have_a_description(self):
+        # the <!-- comment --> is shown in the GUI as the description of the preset
+        for preset in vmr_gui.list_presets():
+            self.assertTrue(preset["description"], preset["file"])
+            self.assertNotIn("<", preset["description"], preset["file"])
+
+    def test_presets_do_not_overlap(self):
+        # a user ticks any combination of the bundled presets; a rule for the same callsign and type in two of
+        # them would make the GUI warn about an unused rule, so every (callsign, type) pair lives in one preset
+        seen = {}
+        for path in sorted((ROOT / "presets").glob("*.vmr")):
+            for rule in vmr_gui.parse_vmr(path.read_text(encoding="utf-8")):
+                key = (rule["callsign"], rule["type"])
+                self.assertNotIn(key, seen, "%s is in %s and %s" % (key, seen.get(key), path.name))
+                seen[key] = path.name
+        self.assertIn(("BEL", "BCS3"), seen)
+        self.assertEqual(seen[("BEL", "BCS3")], "airBaltic_ACMI.vmr")
+        self.assertEqual(seen[("KLM", "E190")], "air_france_klm_group.vmr")
+        self.assertEqual(seen[("DLH", "E190")], "lufthansa_group.vmr")
+        self.assertEqual(seen[("SVS", "E195")], "sas_group.vmr")
 
 
 class LicenseFilesTest(unittest.TestCase):
