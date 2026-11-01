@@ -63,10 +63,17 @@
 
   <!-- Step 2: ready-made rule sets -->
   <section class="step" id="step2" data-step="2" hidden>
-    <div class="column">
-      <h2>Presets</h2>
-      <p class="hint">Ready-made rule sets from the <code>presets</code> folder. Tick the ones you want in your VMR. They are put before your own rules and the rules generated from the MTL.</p>
-      <div id="presets"></div>
+    <div class="columns">
+      <div class="column">
+        <h2>Presets</h2>
+        <p class="hint">Ready-made rule sets from the <code>presets</code> folder. Tick the ones you want in your VMR. They are put before your own rules and the rules generated from the MTL. Ticking a group ticks all its presets; each preset keeps its own rules.</p>
+        <div id="presets"></div>
+      </div>
+      <div class="column library">
+        <h2>Livery</h2>
+        <p class="hint">Click a livery id in a preset to see it here.</p>
+        <div id="presetPreview" class="preset-preview"></div>
+      </div>
     </div>
   </section>
 

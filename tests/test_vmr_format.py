@@ -88,6 +88,17 @@ class PresetsTest(TempDirTestCase):
         self.assertIn("extra_rules", presets)
         self.assertEqual(presets["smartwings_group"]["name"], "smartwings group")
         self.assertIn("Place before the IVAO MTL rules", presets["extra_rules"]["description"])
+        # the GUI shows the airline groups (*_group) and the other presets as two groups of a tree
+        self.assertEqual(presets["smartwings_group"]["category"], "airlines")
+        self.assertEqual(presets["latam_group"]["category"], "airlines")
+        self.assertEqual(presets["extra_rules"]["category"], "other")
+        self.assertEqual(presets["airBaltic_ACMI"]["category"], "other")
+
+    def test_preset_category(self):
+        self.assertEqual(vmr_gui.preset_category("lufthansa_group"), "airlines")
+        self.assertEqual(vmr_gui.preset_category("My_Group"), "airlines")
+        self.assertEqual(vmr_gui.preset_category("extra_rules"), "other")
+        self.assertEqual(vmr_gui.preset_category("group_of_rules"), "other")
 
     def test_preset_next_to_the_program_replaces_bundled_one(self):
         own = self.tmp / "presets"

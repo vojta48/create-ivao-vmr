@@ -377,6 +377,26 @@
   }
 
   // ---------------------------------------------------------------- presets
+  // The presets form a tree of two groups: the airline groups (presets whose file is named *_group.vmr; the server
+  // sets category "airlines") and the other presets. A group's checkbox ticks or unticks all presets of the group;
+  // every preset keeps its own checkbox and its own rules, so the groups only make ticking easier.
+  // The groups that have presets, each with its presets. (A pure function, so that the tests can run it in Node.js.)
+  function groupPresets(presets) {
+    const groups = [
+      { category: "airlines", title: "Airline groups", hint: "The airlines of a group fly each other's aircraft or share one livery: a callsign without a livery of its own in the MTL gets the livery of its group." },
+      { category: "other", title: "Other presets", hint: "Wet leases, substitutions for liveries missing from the MTL, and your own presets." },
+    ];
+    return groups
+      .map((group) => ({ category: group.category, title: group.title, hint: group.hint, presets: presets.filter((p) => (p.category || "other") === group.category) }))
+      .filter((group) => group.presets.length > 0);
+  }
+
+  // "all", "some" or "none": how many presets of the group are ticked (selected is a Set of preset ids).
+  function groupSelection(group, selected) {
+    const ticked = group.presets.filter((p) => selected.has(p.id)).length;
+    return ticked === 0 ? "none" : ticked === group.presets.length ? "all" : "some";
+  }
+
   function renderPresets() {
     const container = $("presets");
     container.innerHTML = "";
@@ -384,29 +404,70 @@
       container.append(el("div", { class: "hint" }, "No presets found. Put .vmr files into " + (state.presetsDir || "the presets folder") + "."));
       return;
     }
-    for (const preset of state.presets) {
-      const checkbox = el("input", { type: "checkbox" });
-      checkbox.checked = state.selectedPresets.has(preset.id);
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) state.selectedPresets.add(preset.id); else state.selectedPresets.delete(preset.id);
+    for (const group of groupPresets(state.presets)) {
+      const groupBox = el("input", { type: "checkbox", id: "group-" + group.category });
+      const refreshGroupBox = () => {
+        const selection = groupSelection(group, state.selectedPresets);
+        groupBox.checked = selection === "all";
+        groupBox.indeterminate = selection === "some";
+      };
+      const boxes = [];
+      groupBox.addEventListener("change", () => {
+        for (const preset of group.presets) { if (groupBox.checked) state.selectedPresets.add(preset.id); else state.selectedPresets.delete(preset.id); }
+        boxes.forEach((box, i) => { box.checked = groupBox.checked; });
+        refreshGroupBox();
         updateOutput();
       });
-      const list = el("ul");
-      for (const rule of preset.rules) {
-        const line = el("li", {}, ruleConditions(rule) + " → ");
-        rule.models.forEach((model, i) => {
-          const known = state.liveries.size === 0 || state.liveries.has(model);
-          line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show in the library" : "Not installed in your MTL", onclick: () => { $("search").value = model; renderLibrary(); showStep(3); } }, model));
-          if (i < rule.models.length - 1) line.append(" // ");
+      const list = el("div", { class: "preset-list" });
+      for (const preset of group.presets) {
+        const checkbox = el("input", { type: "checkbox" });
+        checkbox.checked = state.selectedPresets.has(preset.id);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) state.selectedPresets.add(preset.id); else state.selectedPresets.delete(preset.id);
+          refreshGroupBox();
+          updateOutput();
         });
-        list.append(line);
+        boxes.push(checkbox);
+        list.append(presetCard(preset, checkbox));
       }
-      container.append(el("div", { class: "preset" },
-        el("label", {}, checkbox, preset.name + " (" + preset.rules.length + " rules)"),
-        preset.description ? el("div", { class: "desc" }, preset.description) : null,
-        el("details", {}, el("summary", {}, "Rules"), list,
-          el("button", { class: "small secondary", onclick: () => { state.rules.push(...preset.rules.map(normaliseRule)); renderRules(); } }, "Copy into my rules"))
-      ));
+      refreshGroupBox();
+      container.append(el("div", { class: "preset-group" },
+        el("label", { class: "group-head" }, groupBox, group.title + " (" + group.presets.length + ")"),
+        el("div", { class: "group-hint" }, group.hint),
+        list));
+    }
+  }
+
+  function presetCard(preset, checkbox) {
+    const list = el("ul");
+    for (const rule of preset.rules) {
+      const line = el("li", {}, ruleConditions(rule) + " → ");
+      rule.models.forEach((model, i) => {
+        const known = state.liveries.size === 0 || state.liveries.has(model);
+        line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show the livery" : "Not installed in your MTL", onclick: () => showPresetPreview(model) }, model));
+        if (i < rule.models.length - 1) line.append(" // ");
+      });
+      list.append(line);
+    }
+    return el("div", { class: "preset" },
+      el("label", {}, checkbox, preset.name + " (" + preset.rules.length + " rules)"),
+      preset.description ? el("div", { class: "desc" }, preset.description) : null,
+      el("details", {}, el("summary", {}, "Rules"), list,
+        el("button", { class: "small secondary", onclick: () => { state.rules.push(...preset.rules.map(normaliseRule)); renderRules(); } }, "Copy into my rules"))
+    );
+  }
+
+  // The livery clicked in a preset, shown next to the presets (the page stays on the presets step).
+  function showPresetPreview(mtlId) {
+    const box = $("presetPreview");
+    box.innerHTML = "";
+    const livery = state.liveries.get(mtlId);
+    if (livery) {
+      box.append(liveryCard(livery, null));
+    } else {
+      box.append(el("div", { class: "card" },
+        el("div", { class: "head" }, el("div", { class: "id" }, mtlId), catalogLink(mtlId, "↗")),
+        el("div", { class: "meta" }, state.liveries.size === 0 ? "No MTL found, so the livery cannot be shown." : "Not installed in your MTL.")));
     }
   }
 
@@ -613,20 +674,27 @@
       ? "No liveries found. " + mtlFolderText()
       : matches.length + " of " + all.length + " liveries" + (matches.length > limit ? " (showing the first " + limit + ", refine the search)" : "");
     for (const livery of matches.slice(0, limit)) {
-      const card = el("div", { class: "card", title: "Add " + livery.id + " to the selected rule", onclick: () => addModelToSelectedRule(livery) });
-      const link = catalogLink(livery.id, "↗");
-      link.className = "catalog";
-      link.addEventListener("click", (e) => e.stopPropagation());
-      card.append(
-        preview(livery, "picture", el("div", { class: "picture none" }, "no picture")),
-        el("div", { class: "head" }, el("div", { class: "id" }, livery.id), link),
-        el("div", { class: "name" + (livery.standard ? "" : " special") }, livery.name || livery.model),
-        el("div", { class: "meta" }, livery.type + " · " +
-          (!livery.inVmr ? "no airline code or invisible model, not in the MTL rules" : livery.airline || "any airline (type-only rule)") +
-          (livery.standard ? "" : " · special livery"))
-      );
-      grid.append(card);
+      grid.append(liveryCard(livery, () => addModelToSelectedRule(livery)));
     }
+  }
+
+  // The card of one livery: its picture, id (with a link to the MTL catalog), name and type. The library's cards
+  // add the livery to the selected rule when clicked; the preview on the presets step has no click action.
+  function liveryCard(livery, onclick) {
+    const card = el("div", { class: "card", title: onclick ? "Add " + livery.id + " to the selected rule" : livery.id });
+    if (onclick) card.addEventListener("click", onclick);
+    const link = catalogLink(livery.id, "↗");
+    link.className = "catalog";
+    link.addEventListener("click", (e) => e.stopPropagation());
+    card.append(
+      preview(livery, "picture", el("div", { class: "picture none" }, "no picture")),
+      el("div", { class: "head" }, el("div", { class: "id" }, livery.id), link),
+      el("div", { class: "name" + (livery.standard ? "" : " special") }, livery.name || livery.model),
+      el("div", { class: "meta" }, livery.type + " · " +
+        (!livery.inVmr ? "no airline code or invisible model, not in the MTL rules" : livery.airline || "any airline (type-only rule)") +
+        (livery.standard ? "" : " · special livery"))
+    );
+    return card;
   }
 
   function renderDatalists() {

@@ -234,9 +234,16 @@ def list_presets():
             "name": path.stem.replace("_", " "),
             "file": path.name,
             "description": description,
+            "category": preset_category(path.stem),
             "rules": parse_vmr(text),
         })
     return presets
+
+
+def preset_category(preset_id):
+    """The GUI shows the presets in two groups: the airline groups (files named *_group.vmr, where the members of
+    a group fly each other's aircraft or share a livery) and the other presets (substitutions, wet leases)."""
+    return "airlines" if preset_id.lower().endswith("_group") else "other"
 
 
 def _read_text(path):
