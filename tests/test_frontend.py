@@ -152,6 +152,13 @@ class JavaScriptTest(unittest.TestCase):
         result = run_js(["ruleKey", "withoutShadowedRules"], "withoutShadowedRules(data)", rules)
         self.assertEqual(result, [rules[0], rules[1], rules[2], rules[5]])
 
+    def test_livery_dialog_is_on_the_page(self):
+        # the livery of a preset rule opens over the page (a dialog), so the presets step does not need a second column
+        self.assertIn('<dialog id="liveryDialog"', INDEX)
+        self.assertNotIn("presetPreview", INDEX)
+        self.assertNotIn("presetPreview", APP_JS)
+        self.assertIn('$("liveryDialog")', js_function("showPresetPreview"))
+
     def test_group_presets_makes_the_two_groups_of_the_tree(self):
         presets = [
             {"id": "airBaltic_ACMI", "category": "other"},

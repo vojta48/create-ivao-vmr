@@ -457,18 +457,17 @@
     );
   }
 
-  // The livery clicked in a preset, shown next to the presets (the page stays on the presets step).
+  // The livery clicked in a preset, shown in a dialog over the page (the page stays on the presets step and where
+  // it was scrolled to). The dialog closes with its button, with Escape, or with a click on the backdrop.
   function showPresetPreview(mtlId) {
-    const box = $("presetPreview");
-    box.innerHTML = "";
+    const dialog = $("liveryDialog");
+    dialog.innerHTML = "";
     const livery = state.liveries.get(mtlId);
-    if (livery) {
-      box.append(liveryCard(livery, null));
-    } else {
-      box.append(el("div", { class: "card" },
-        el("div", { class: "head" }, el("div", { class: "id" }, mtlId), catalogLink(mtlId, "↗")),
-        el("div", { class: "meta" }, state.liveries.size === 0 ? "No MTL found, so the livery cannot be shown." : "Not installed in your MTL.")));
-    }
+    const card = livery ? liveryCard(livery, null) : el("div", { class: "card" },
+      el("div", { class: "head" }, el("div", { class: "id" }, mtlId), catalogLink(mtlId, "↗")),
+      el("div", { class: "meta" }, state.liveries.size === 0 ? "No MTL found, so the livery cannot be shown." : "Not installed in your MTL."));
+    dialog.append(card, el("div", { class: "close-row" }, el("button", { class: "secondary", onclick: () => closeDialog(dialog) }, "Close")));
+    if (dialog.showModal) { if (!dialog.open) dialog.showModal(); } else dialog.setAttribute("open", "");
   }
 
   // ---------------------------------------------------------------- rules
@@ -834,6 +833,7 @@
   $("mtlStandard").addEventListener("change", () => { state.mtl.mode = "standard"; updateOutput(); });
   $("mtlAll").addEventListener("change", () => { state.mtl.mode = "all"; updateOutput(); });
 
+  $("liveryDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) closeDialog(e.currentTarget); });
   $("back").addEventListener("click", () => showStep(state.step - 1));
   $("continue").addEventListener("click", () => showStep(state.step + 1));
   for (const button of document.querySelectorAll(".step-button")) button.addEventListener("click", () => showStep(Number(button.dataset.step)));
