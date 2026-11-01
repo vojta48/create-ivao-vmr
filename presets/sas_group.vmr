@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- SAS group: SAS Link Embraer 195s flown with the SAS callsign, and SAS Connect (SZS) Airbuses in SAS colours. -->
+<ModelMatchRule CallsignPrefix="SAS" TypeCode="E195" ModelName="E195SVS" />
+<ModelMatchRule CallsignPrefix="SZS" TypeCode="A320" ModelName="A320SAS2" />
+<ModelMatchRule CallsignPrefix="SZS" TypeCode="A20N" ModelName="A20NSAS" />
+<ModelMatchRule CallsignPrefix="SZS" TypeCode="A21N" ModelName="A21NSAS" />
+</ModelMatchRuleSet>

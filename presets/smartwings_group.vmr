@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
+<!-- Smartwings group: Smartwings (TVS), Smartwings Poland (TVP), Hungary (TVL), Slovakia (TVQ) and Czech Airlines (CSA) fly each other's aircraft. -->
 <ModelMatchRule CallsignPrefix="CSA" TypeCode="B738" ModelName="B738TVSWL//B738TVSWL3" />
 <ModelMatchRule CallsignPrefix="CSA" TypeCode="B737" ModelName="B737TVS" />
 <ModelMatchRule CallsignPrefix="CSA" TypeCode="B739" ModelName="B739TVSWL" />
@@ -21,10 +22,10 @@
 <ModelMatchRule CallsignPrefix="TVP" TypeCode="B38M" ModelName="B38MTVS" />
 <ModelMatchRule CallsignPrefix="TVL" TypeCode="B38M" ModelName="B38MTVS" />
 <ModelMatchRule CallsignPrefix="TVQ" TypeCode="B38M" ModelName="B38MTVS" />
-<ModelMatchRule CallsignPrefix="CSA" TypeCode="B38M" ModelName="B38MTVS" /> 
+<ModelMatchRule CallsignPrefix="CSA" TypeCode="B38M" ModelName="B38MTVS" />
 <ModelMatchRule CallsignPrefix="TVS" TypeCode="BCS3" ModelName="BCS3CSA" />
 <ModelMatchRule CallsignPrefix="TVP" TypeCode="BCS3" ModelName="BCS3CSA" />
 <ModelMatchRule CallsignPrefix="TVL" TypeCode="BCS3" ModelName="BCS3CSA" />
-<ModelMatchRule CallsignPrefix="TVQ" TypeCode="BCS3" ModelName="BCS3CSA" /> 
+<ModelMatchRule CallsignPrefix="TVQ" TypeCode="BCS3" ModelName="BCS3CSA" />
 <ModelMatchRule CallsignPrefix="CSA" TypeCode="BCS3" ModelName="BCS3CSA" />
 </ModelMatchRuleSet>

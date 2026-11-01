@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- IAG group: BA Shuttle (SHT) and BA Euroflyer (EFW) Airbuses in British Airways colours, British Airways flights (BAW callsign) on BA CityFlyer Embraers, Iberia Regional flights (IBE callsign) on Air Nostrum CRJs and ATRs, Aer Lingus UK (EUK) in Aer Lingus colours. -->
+<ModelMatchRule CallsignPrefix="SHT" TypeCode="A319" ModelName="A319BAW" />
+<ModelMatchRule CallsignPrefix="SHT" TypeCode="A320" ModelName="A320BAW//A320BAW2" />
+<ModelMatchRule CallsignPrefix="SHT" TypeCode="A321" ModelName="A321BAW" />
+<ModelMatchRule CallsignPrefix="SHT" TypeCode="A20N" ModelName="A20NBAW2" />
+<ModelMatchRule CallsignPrefix="SHT" TypeCode="A21N" ModelName="A21NBAW" />
+<ModelMatchRule CallsignPrefix="EFW" TypeCode="A321" ModelName="A321BAW" />
+<ModelMatchRule CallsignPrefix="EFW" TypeCode="A20N" ModelName="A20NBAW2" />
+<ModelMatchRule CallsignPrefix="EFW" TypeCode="A21N" ModelName="A21NBAW" />
+<ModelMatchRule CallsignPrefix="BAW" TypeCode="E170" ModelName="E170CFE" />
+<ModelMatchRule CallsignPrefix="BAW" TypeCode="E190" ModelName="E190CFE" />
+<ModelMatchRule CallsignPrefix="IBE" TypeCode="CRJ9" ModelName="CRJ9ANE" />
+<ModelMatchRule CallsignPrefix="IBE" TypeCode="CRJX" ModelName="CRJXANE" />
+<ModelMatchRule CallsignPrefix="IBE" TypeCode="AT76" ModelName="AT76ANE" />
+<ModelMatchRule CallsignPrefix="EUK" TypeCode="A21N" ModelName="A21NEIN" />
+<ModelMatchRule CallsignPrefix="EUK" TypeCode="A332" ModelName="A332EIN" />
+<ModelMatchRule CallsignPrefix="EUK" TypeCode="A333" ModelName="A333EIN" />
+</ModelMatchRuleSet>

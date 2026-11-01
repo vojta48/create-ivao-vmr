@@ -87,7 +87,7 @@ class PresetsTest(TempDirTestCase):
         self.assertIn("smartwings_group", presets)
         self.assertIn("extra_rules", presets)
         self.assertEqual(presets["smartwings_group"]["name"], "smartwings group")
-        self.assertIn("Place as first priority", presets["extra_rules"]["description"])
+        self.assertIn("Place before the IVAO MTL rules", presets["extra_rules"]["description"])
 
     def test_preset_next_to_the_program_replaces_bundled_one(self):
         own = self.tmp / "presets"

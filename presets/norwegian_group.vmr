@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- Norwegian group: Norwegian Air Shuttle (NAX callsign) flights on the Boeing 737 MAX and 737-300 of Norwegian Air Norway (NOZ). -->
+<ModelMatchRule CallsignPrefix="NAX" TypeCode="B38M" ModelName="B38MNOZ" />
+<ModelMatchRule CallsignPrefix="NAX" TypeCode="B733" ModelName="B733NOZWL" />
+</ModelMatchRuleSet>
