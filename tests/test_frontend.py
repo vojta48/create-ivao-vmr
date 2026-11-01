@@ -98,6 +98,18 @@ class JavaScriptTest(unittest.TestCase):
         self.assertEqual(len(set(keys)), 4)
         self.assertEqual(keys[0], keys[4])
 
+    def test_without_shadowed_rules_keeps_the_first_rule_for_each_condition(self):
+        rules = [
+            {"callsign": "TVS", "type": "B738", "models": ["B738TVSWL"]},           # preset
+            {"callsign": "SWR", "type": "BCS3", "models": ["BCS3SWR"]},             # preset, repeated by the MTL
+            {"callsign": "SWR", "type": "BCS3", "exactCallsign": "SWR123", "models": ["BCS3SWR"]},
+            {"callsign": "TVS", "type": "B738", "models": ["B738TVSWL2"]},          # MTL, shadowed by the preset
+            {"callsign": "SWR", "type": "BCS3", "models": ["BCS3SWR"]},             # MTL, the same as the preset
+            {"callsign": "", "type": "B738", "models": ["B738TVSWL2"]},
+        ]
+        result = run_js(["ruleKey", "withoutShadowedRules"], "withoutShadowedRules(data)", rules)
+        self.assertEqual(result, [rules[0], rules[1], rules[2], rules[5]])
+
     def test_rule_conditions(self):
         self.assertEqual(run_js(["ruleConditions"], "data.map(ruleConditions)", [
             {"callsign": "", "type": "C172"}, {"callsign": "DLH", "exactCallsign": "DLH1", "flightNumbers": "1-9", "type": "A320"}]),

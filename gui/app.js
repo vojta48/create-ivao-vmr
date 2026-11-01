@@ -461,7 +461,19 @@
     }
     rules.push(...state.rules.map(normaliseRule).filter((r) => r.type && r.models.length));
     rules.push(...mtlRulesSelected());
-    return rules;
+    return withoutShadowedRules(rules);
+  }
+
+  // vPilot takes the first rule whose conditions fit, so a later rule with the same conditions (a preset rule
+  // repeated by the rules generated from the MTL, for example) is never used: it is left out of the file.
+  function withoutShadowedRules(rules) {
+    const seen = new Set();
+    return rules.filter((rule) => {
+      const key = ruleKey(rule);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   function outputComment() {

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
-<!-- Ryanair group: Ryanair UK (RUK) Boeing 737 MAX in Ryanair colours, Lauda Europe (LDM) Airbus A320 in Lauda colours. Malta Air (MAY) and Buzz (RYS) have their own liveries in the MTL. -->
+<!-- Ryanair group: Ryanair UK (RUK) Boeing 737 MAX in Ryanair colours, Lauda Europe Airbus A320s in Lauda colours with the Ryanair (RYR) or Lauda (LDM) callsign. Malta Air (MAY) and Buzz (RYS) have their own liveries in the MTL. -->
 <ModelMatchRule CallsignPrefix="RUK" TypeCode="B38M" ModelName="B38MRYR" />
+<ModelMatchRule CallsignPrefix="RYR" TypeCode="A320" ModelName="A320LDA" />
 <ModelMatchRule CallsignPrefix="LDM" TypeCode="A320" ModelName="A320LDA" />
 </ModelMatchRuleSet>

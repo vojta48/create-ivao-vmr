@@ -35,7 +35,7 @@ Normally you don't have to do anything. For the cases where you do:
 - On the command line, `-c <Community folder>` sets the Community folder and `-d <IVAO_MTL folder>` sets the MTL folder, each for one run.
 
 ### Build your VMR
-The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win:
+The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win, and a later rule with the same callsign and type (a preset rule that the MTL rules repeat, for example) is left out of the file:
 
 1. **Presets**: ready-made rule sets for cases the MTL does not cover. Tick the ones you want. Included are:
    - airline groups whose members fly each other's aircraft or share a livery, so a callsign without a livery of its own gets the group's one: `smartwings_group` (Smartwings, Smartwings Poland/Hungary/Slovakia, Czech Airlines), `lufthansa_group`, `air_france_klm_group`, `iag_group`, `sas_group`, `norwegian_group`, `ryanair_group`, `wizz_air_group`, `easyjet_group` and `tui_group`;

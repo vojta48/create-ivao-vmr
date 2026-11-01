@@ -53,7 +53,8 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("BEL", "BCS3")], "airBaltic_ACMI.vmr")
         self.assertEqual(seen[("KLM", "E190")], "air_france_klm_group.vmr")
         self.assertEqual(seen[("DLH", "E190")], "lufthansa_group.vmr")
-        self.assertEqual(seen[("SVS", "E195")], "sas_group.vmr")
+        self.assertEqual(seen[("SAS", "E195")], "sas_group.vmr")
+        self.assertEqual(seen[("RYR", "A320")], "ryanair_group.vmr")
 
 
 class LicenseFilesTest(unittest.TestCase):
