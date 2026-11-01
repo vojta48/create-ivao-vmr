@@ -12,12 +12,19 @@
     mtl: { enabled: false, mode: "standard" },
     catalogSearch: "https://mtl.ivao.aero/catalog?textureName={name}",
     outputDir: "",
+    modelsRoot: null,       // the MTL folder in use (null: no MTL found)
+    mtlReason: null,        // why that folder: "command line", "chosen", "program folder" or the simulator it was found in
+    mtlFolders: [],         // the simulators found on this computer: {sim, community, mtl (null: no MTL there)}
+    presetsDir: "",
+    communityFolder: "",    // the Community folder the user chose ("": the MTL is found automatically)
+    updateIgnored: false,   // "Ignore" was clicked in the update prompt (for this run)
+    checkForUpdates: true,
     settingsLoaded: false,  // the settings of the last run are applied; only then are changes sent back
     settingsSent: "",       // the settings last sent to the server, so that unchanged settings are not written again
     rulesLoaded: false,     // my rules came from the server; only then are changes sent back
     rulesSent: "",          // my rules last sent to the server
   };
-  // vmr_gui.py keeps the settings in vmr_gui_settings.json and my rules in vmr_gui_my_rules.vmr, because the
+  // vmr_gui.py keeps the settings in settings.json and my rules in my_rules.vmr (in AppData), because the
   // application window does not keep browser storage. Versions before 1.1.0 kept my rules in the browser under
   // this key; they are moved to the file once.
   const OLD_DRAFT_KEY = "ivao-vmr-generator-draft";
@@ -58,7 +65,14 @@
     saveSettings();
   }
 
-  // ---------------------------------------------------------------- my rules (vmr_gui_my_rules.vmr)
+  // Sends what is still waiting for its timer at once (before the page reloads or the program restarts).
+  function flushDraft() {
+    clearTimeout(rulesTimer);
+    clearTimeout(settingsTimer);
+    return Promise.all([sendMyRules(), sendSettings()]);
+  }
+
+  // ---------------------------------------------------------------- my rules (my_rules.vmr)
   // Only complete rules are stored, like in every VMR (a rule still being typed is kept on the page).
   function completeRules() {
     return state.rules.map(normaliseRule).filter((r) => r.type && r.models.length);
@@ -89,26 +103,31 @@
   function saveMyRules() {
     if (!state.rulesLoaded) return;
     clearTimeout(rulesTimer);
-    rulesTimer = setTimeout(() => {
-      const rules = completeRules();
-      const text = JSON.stringify(rules);
-      if (text === state.rulesSent) return;
-      state.rulesSent = text;
-      api("/api/my-rules", { rules: rules })
-        .then(() => { try { localStorage.removeItem(OLD_DRAFT_KEY); } catch (e) { /* ignore */ } })
-        .catch(() => { state.rulesSent = ""; });
-    }, 400);
+    rulesTimer = setTimeout(sendMyRules, 400);
+  }
+
+  function sendMyRules() {
+    if (!state.rulesLoaded) return Promise.resolve();
+    const rules = completeRules();
+    const text = JSON.stringify(rules);
+    if (text === state.rulesSent) return Promise.resolve();
+    state.rulesSent = text;
+    return api("/api/my-rules", { rules: rules })
+      .then(() => { try { localStorage.removeItem(OLD_DRAFT_KEY); } catch (e) { /* ignore */ } })
+      .catch(() => { state.rulesSent = ""; });
   }
 
   // ---------------------------------------------------------------- settings of the last run
   function currentSettings() {
-    return { fileName: $("fileName").value.trim(), selectedPresets: [...state.selectedPresets], mtlRules: { enabled: state.mtl.enabled, mode: state.mtl.mode } };
+    return { fileName: $("fileName").value.trim(), selectedPresets: [...state.selectedPresets], mtlRules: { enabled: state.mtl.enabled, mode: state.mtl.mode }, checkForUpdates: state.checkForUpdates };
   }
 
   function applySettings(settings) {
     if (settings.fileName) $("fileName").value = settings.fileName;
     state.selectedPresets = new Set(settings.selectedPresets || []);
     if (settings.mtlRules) state.mtl = { enabled: Boolean(settings.mtlRules.enabled), mode: settings.mtlRules.mode === "all" ? "all" : "standard" };
+    state.checkForUpdates = settings.checkForUpdates !== false;
+    $("checkUpdates").checked = state.checkForUpdates;
     state.settingsSent = JSON.stringify(currentSettings());
     state.settingsLoaded = true;
   }
@@ -118,17 +137,143 @@
   function saveSettings() {
     if (!state.settingsLoaded) return;
     clearTimeout(settingsTimer);
-    settingsTimer = setTimeout(() => {
-      const settings = currentSettings();
-      const text = JSON.stringify(settings);
-      if (text === state.settingsSent || !settings.fileName) return;
-      state.settingsSent = text;
-      api("/api/settings", { settings: settings }).catch(() => { state.settingsSent = ""; });
-    }, 400);
+    settingsTimer = setTimeout(sendSettings, 400);
   }
 
+  function sendSettings() {
+    if (!state.settingsLoaded) return Promise.resolve();
+    const settings = currentSettings();
+    const text = JSON.stringify(settings);
+    if (text === state.settingsSent || !settings.fileName) return Promise.resolve();
+    state.settingsSent = text;
+    return api("/api/settings", { settings: settings }).catch(() => { state.settingsSent = ""; });
+  }
+
+  // The output folder is the IVAO_MTL folder until the user chooses another one (or saves somewhere else).
   function showOutputFolder() {
-    $("outputFolder").textContent = state.outputDir ? "Output folder: " + state.outputDir : "";
+    const box = $("outputFolder");
+    box.innerHTML = "";
+    if (!state.outputDir) return;
+    box.append("Output folder: " + state.outputDir + " ");
+    if (inWindow()) box.append(el("button", { class: "small secondary", onclick: () => changeOutputFolder(() => window.pywebview.api.choose_output_folder()) }, "Change…"), " ");
+    if (state.modelsRoot && state.outputDir !== state.modelsRoot) {
+      box.append(el("button", { class: "small secondary", onclick: () => changeOutputFolder(() => api("/api/output-folder", { default: true })) }, "Use the IVAO_MTL folder"));
+    }
+  }
+
+  async function changeOutputFolder(change) {
+    try {
+      const result = await change();
+      if (result.error) $("saveResult").textContent = "Error: " + result.error;
+      else if (result.outputDir) { state.outputDir = result.outputDir; showOutputFolder(); }
+    } catch (err) {
+      $("saveResult").textContent = "Error: " + (err.message || err);
+    }
+  }
+
+  // ---------------------------------------------------------------- which MTL
+  // vmr_gui.py finds the MTL in the Community folder of MSFS 2020/2024 by itself; that is the normal way. With more
+  // than one simulator the user can switch between them, and in the application window choose the Community folder
+  // when it is not found. "Find it automatically" goes back to the normal way.
+  function mtlFolderText() {
+    if (!state.modelsRoot) {
+      const sims = state.mtlFolders.map((s) => s.sim + " (no IVAO MTL in " + s.community + ")");
+      return "No IVAO MTL found. " + (sims.length ? "Found " + sims.join(", ") + ". " : "No MSFS 2020 or 2024 found. ") +
+        "Install the MTL with the MTL Installer" + (inWindow() ? ", or choose the Community folder it is in." : ", or start the program with -c <Community folder>.");
+    }
+    const why = { "command line": "given with -d", "chosen": "in the Community folder you chose", "program folder": "the folder of the program" }[state.mtlReason] || ("found in " + state.mtlReason);
+    return "MTL: " + state.modelsRoot + " (" + why + ")";
+  }
+
+  function renderMtlFolder() {
+    const box = $("mtlFolder");
+    box.innerHTML = "";
+    box.append(mtlFolderText());
+    const others = state.mtlFolders.filter((s) => s.mtl && s.mtl !== state.modelsRoot);
+    if (others.length) {
+      const select = el("select", { onchange: () => { if (select.value) switchMtl(() => api("/api/community", { community: select.value })); } },
+        el("option", { value: "" }, "Use the MTL of another simulator…"),
+        ...others.map((s) => el("option", { value: s.community }, s.sim)));
+      box.append(el("div", { class: "row" }, select));
+    }
+    const buttons = el("div", { class: "row" });
+    if (inWindow()) buttons.append(el("button", { class: "small secondary", onclick: () => switchMtl(() => window.pywebview.api.choose_community_folder()) }, "Choose the Community folder…"));
+    if (state.communityFolder) buttons.append(el("button", { class: "small secondary", onclick: () => switchMtl(() => api("/api/community", { community: null })) }, "Find it automatically"));
+    if (buttons.childNodes.length) box.append(buttons);
+  }
+
+  // Switches to another MTL: the server scans it, and the page starts again with its liveries.
+  async function switchMtl(change) {
+    try {
+      const result = await change();
+      if (result.cancelled) return;
+      if (result.error) { setStatus(result.error, true); return; }
+      await flushDraft();
+      location.reload();
+    } catch (err) {
+      setStatus("Could not change the MTL folder: " + (err.message || err), true);
+    }
+  }
+
+  // ---------------------------------------------------------------- updates
+  // vmr_gui.py asks GitHub for the latest release. A newer release is offered in a prompt with "Update" and "Ignore":
+  // "Update" installs it right away and restarts the program. Running from source (or a release without the exe)
+  // the prompt links to the release page instead. A development version is never offered an update.
+  async function checkForUpdate(now) {
+    if (now) $("updateInfo").textContent = "Checking…";
+    try {
+      const status = now ? await api("/api/update", { action: "check" }) : await api("/api/update");
+      $("updateInfo").textContent = updateInfoText(status);
+      // "Ignore" keeps the prompt away for this run; "Check now" shows it again
+      if (status.available && (now || !state.updateIgnored)) showUpdatePrompt(status);
+    } catch (err) {
+      $("updateInfo").textContent = "Could not check for a new version: " + err.message;
+    }
+  }
+
+  function updateInfoText(status) {
+    if (status.error) return status.error;
+    if (!status.checked) return status.enabled ? "" : "The check at start is off.";
+    if (!status.latest) return "Version " + status.current + " is a development version, so it is not checked for updates.";
+    if (status.development) return "Version " + status.current + " is a development version, newer than the latest release (" + status.latest + ").";
+    return status.available ? "Version " + status.latest + " is available." : "You have the newest version (" + status.current + ").";
+  }
+
+  function showUpdatePrompt(status) {
+    const dialog = $("updateDialog");
+    const update = el("button", {}, status.canInstall ? "Update" : "Open the release page");
+    const ignore = el("button", { class: "secondary", onclick: () => { state.updateIgnored = true; closeDialog(dialog); } }, "Ignore");
+    const text = el("p", {}, "You have version " + status.current + ". " + (status.canInstall
+      ? "Update downloads the new version, installs it and restarts the program. Your settings and rules are kept."
+      : "Download it from the release page and replace the program you have."));
+    update.addEventListener("click", () => {
+      if (status.canInstall) installUpdate(status, text, update, ignore);
+      else { window.open(status.page, "_blank", "noreferrer"); closeDialog(dialog); }
+    });
+    dialog.innerHTML = "";
+    dialog.append(el("h2", {}, "Version " + status.latest + " is available"), text,
+      status.notes ? el("details", {}, el("summary", {}, "What's new"), el("pre", {}, status.notes)) : null,
+      el("div", { class: "row" }, update, ignore));
+    if (dialog.showModal) { if (!dialog.open) dialog.showModal(); } else dialog.setAttribute("open", "");
+  }
+
+  function closeDialog(dialog) {
+    if (dialog.close) dialog.close(); else dialog.removeAttribute("open");
+  }
+
+  async function installUpdate(status, text, update, ignore) {
+    update.disabled = ignore.disabled = true;
+    text.textContent = "Downloading and checking version " + status.latest + "… The program restarts when it is done.";
+    try {
+      await flushDraft();
+      await api("/api/update", { action: "install" });
+      text.textContent = "Version " + status.latest + " is installed. The program restarts…";
+    } catch (err) {
+      text.textContent = "";
+      text.append(err.message + " ", el("a", { href: status.page, target: "_blank", rel: "noreferrer" }, "Open the release page ↗"));
+      ignore.disabled = false;
+      ignore.textContent = "Close";
+    }
   }
 
   // Messages about the last run that the user should read once (settings reset, rules changed by the MTL).
@@ -196,7 +341,7 @@
     const container = $("presets");
     container.innerHTML = "";
     if (state.presets.length === 0) {
-      container.append(el("div", { class: "hint" }, "No presets found. Put .vmr files into the presets folder next to vmr_gui.py."));
+      container.append(el("div", { class: "hint" }, "No presets found. Put .vmr files into " + (state.presetsDir || "the presets folder") + "."));
       return;
     }
     for (const preset of state.presets) {
@@ -412,7 +557,7 @@
     const matches = all.filter((l) => terms.every((t) => (l.id + " " + l.airline + " " + l.type + " " + l.name).toUpperCase().includes(t)));
     const limit = 120;
     $("libraryInfo").textContent = all.length === 0
-      ? "No liveries found. Run vmr_gui.py from the IVAO_MTL folder (or use -d) to see your installed liveries."
+      ? "No liveries found. " + mtlFolderText()
       : matches.length + " of " + all.length + " liveries" + (matches.length > limit ? " (showing the first " + limit + ", refine the search)" : "");
     for (const livery of matches.slice(0, limit)) {
       const card = el("div", { class: "card", title: "Add " + livery.id + " to the selected rule", onclick: () => addModelToSelectedRule(livery) });
@@ -486,6 +631,8 @@
     const button = el("button", { class: "secondary", onclick: importFromDialog }, "Open a VMR file…");
     input.replaceWith(button);
     $("download").textContent = "Save as…";
+    renderMtlFolder();  // now with the buttons for the folder dialogs
+    showOutputFolder();
   });
 
   // ---------------------------------------------------------------- init
@@ -497,20 +644,30 @@
       state.liveries = new Map(data.liveries.map((l) => [l.id, l]));
       state.mtlRules = data.mtlRules;
       state.outputDir = data.outputDir;
+      state.modelsRoot = data.modelsRoot;
+      state.mtlReason = data.mtlReason;
+      state.mtlFolders = data.mtlFolders || [];
+      state.presetsDir = data.presetsDir;
+      state.communityFolder = data.communityFolder || "";
       if (data.version) $("version").textContent = data.version;
       if (data.settings) applySettings(data.settings);
       applyMyRules(data.myRules);
-      showNotice(data.settingsNotice, data.myRulesNotice);
+      showNotice(data.filesNotice, data.settingsNotice, data.myRulesNotice);
       showOutputFolder();
+      $("dataDir").textContent = "Your settings and rules are kept in " + data.dataDir + ".";
       if (data.libraryFound) {
         setStatus(data.liveries.length + " liveries found in " + data.airplanesFolder);
+      } else if (data.modelsRoot) {
+        setStatus("No MTL in " + data.airplanesFolder + ". Presets and manual rules still work.", true);
       } else {
-        setStatus("MTL not found in " + data.airplanesFolder + ". Run the script from the IVAO_MTL folder or pass -d. Presets and manual rules still work.", true);
+        setStatus("No IVAO MTL found. Presets and manual rules still work.", true);
       }
       renderErrors(data.errors);
+      checkForUpdate(false);
     } catch (err) {
       setStatus("Could not load data from the server: " + err.message, true);
     }
+    renderMtlFolder();
     renderPresets();
     renderDatalists();
     renderMtl();
@@ -527,6 +684,8 @@
   $("save").addEventListener("click", save);
   $("download").addEventListener("click", download);
   $("fileName").addEventListener("input", saveDraft);
+  $("checkUpdates").addEventListener("change", () => { state.checkForUpdates = $("checkUpdates").checked; saveSettings(); });
+  $("checkNow").addEventListener("click", () => checkForUpdate(true));
   $("search").addEventListener("input", renderLibrary);
   $("importFile").addEventListener("change", (e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ""; });
   init();

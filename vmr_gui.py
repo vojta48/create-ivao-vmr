@@ -2,8 +2,9 @@
 # Simple GUI for building a custom vPilot VMR file on top of the IVAO MTL.
 # Copyright 2024-2026 create-ivao-vmr contributors. Licensed under the Apache License, Version 2.0; see LICENSE and NOTICE.
 #
-# Run it from the IVAO MTL folder (Packages/Community/IVAO_MTL), the same place as create_vmr.py:
+# Run it from anywhere:
 #   python vmr_gui.py
+# It finds the IVAO MTL in the Community folder of MSFS 2020 and 2024 (Steam and Microsoft Store) by itself.
 # It starts a small local web server (standard library only) and shows the GUI in its own window
 # (through pywebview, "pip install pywebview"; without it the GUI opens in your browser instead).
 # In the GUI you can:
@@ -13,24 +14,30 @@
 #     standard liveries only) after your own rules, so that one VMR file is enough in vPilot,
 #   - save the result as a VMR file.
 # Every livery shows its picture from the MTL catalog (https://mtl.ivao.aero/catalog) and links to its page
-# there. The pictures are downloaded once into the "previews" folder next to the program.
-# The settings of the last run (VMR name, its folder, ticked presets, MTL choice) are kept in
-# vmr_gui_settings.json next to the program.
+# there. The pictures are downloaded once into the "previews" folder in the user's AppData.
+# The settings of the last run (VMR name, its folder, ticked presets, MTL choice) and the user's own rules
+# are kept in the user's AppData as well (see "Where the program keeps its files" below).
+# The .exe looks for a new release on GitHub at start and can update itself (see "Updates" below).
 #
 # Options:
-#   -d | --directory [path]   folder that contains SimObjects/Airplanes (default: the current folder)
+#   -d | --directory [path]   folder that contains SimObjects/Airplanes (default: the folder chosen last in
+#                             the GUI, else the folder of the program or the current folder when it is the
+#                             MTL, else the MTL found in the Community folder of the simulator)
 #   -p | --output-directory   folder where generated VMR files are saved (default: the folder of the last
-#                             saved VMR, the first time the current folder)
+#                             saved VMR, the first time Documents\vPilot Files)
 #   --port [number]           port of the local server (default: 8765)
 #   --browser                 show the GUI in the web browser instead of its own window
 #   --no-browser              only run the server, do not open a window or a browser
 
 import argparse
 import configparser
+import hashlib
 import json
 import mimetypes
 import os
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import urllib.error
@@ -46,31 +53,64 @@ from pathlib import Path
 from create_vmr import group_rules, is_standard_livery, mtl_airline_code, mtl_type_code, xml_attr
 
 # When packed into an .exe with PyInstaller (see build_exe.spec), the gui and presets folders are bundled
-# inside the executable and unpacked to a temporary folder (sys._MEIPASS). Files the user edits or that
-# the GUI writes (own presets, the settings, the generated VMRs) live next to the .exe instead.
+# inside the executable and unpacked to a temporary folder (sys._MEIPASS).
 FROZEN = getattr(sys, "frozen", False)
 APP_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent
 BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
 GUI_DIR = BUNDLE_DIR / "gui"
-PRESETS_DIRS = [BUNDLE_DIR / "presets", APP_DIR / "presets"]  # a preset next to the exe replaces a bundled one of the same name
-LOG_FILE = APP_DIR / "vmr_gui.log"
-# The script works in the folder it is run from, like create_vmr.py. The .exe works in its own folder,
-# because Windows does not always start a double-clicked program in the folder it lies in.
-DEFAULT_DIR = str(APP_DIR) if FROZEN else "."
 # Set by the build workflow: open the window, close it again after a few seconds and exit. With --no-browser
 # the server runs for SELF_TEST_SERVER_SECONDS and then stops by itself, so that the test never has to kill it.
 SELF_TEST = os.environ.get("IVAO_VMR_GUI_SELFTEST") == "1"
 SELF_TEST_SERVER_SECONDS = float(os.environ.get("IVAO_VMR_GUI_SELFTEST_SECONDS") or 30)
 
+
+# --------------------------------------------------------------------------------------------------
+# Where the program keeps its files
+# --------------------------------------------------------------------------------------------------
+#
+# The program can be started from any folder (Downloads, the desktop, Program Files), so it writes nothing
+# next to itself. Its files are kept per Windows user:
+#   %APPDATA%\IVAO VMR Generator        settings.json, my_rules.vmr and a "presets" folder for own presets
+#   %LOCALAPPDATA%\IVAO VMR Generator   vmr_gui.log and the "previews" folder (pictures that can be downloaded again)
+# The settings and the user's own rules are in Roaming AppData, the files that are only a cache in Local AppData,
+# as Windows expects. IVAO_VMR_GUI_DATA_DIR puts all of them into one other folder (used by the tests and the
+# smoke tests of the build workflow, so that they never touch the real files of the user).
+APP_FOLDER_NAME = "IVAO VMR Generator"
+
+
+def user_folders(environ=None, platform=None):
+    """(data folder, cache folder) of the program, see above."""
+    environ = os.environ if environ is None else environ
+    platform = platform or sys.platform
+    if environ.get("IVAO_VMR_GUI_DATA_DIR"):
+        folder = Path(environ["IVAO_VMR_GUI_DATA_DIR"])
+        return folder, folder
+    home = Path(environ.get("USERPROFILE") or environ.get("HOME") or Path.home())
+    if platform == "win32":
+        roaming = Path(environ.get("APPDATA") or home / "AppData" / "Roaming")
+        local = Path(environ.get("LOCALAPPDATA") or home / "AppData" / "Local")
+        return roaming / APP_FOLDER_NAME, local / APP_FOLDER_NAME
+    # Running from source on Linux or macOS (for development).
+    config = Path(environ.get("XDG_CONFIG_HOME") or home / ".config")
+    cache = Path(environ.get("XDG_CACHE_HOME") or home / ".cache")
+    return config / "ivao-vmr-generator", cache / "ivao-vmr-generator"
+
+
+DATA_DIR, CACHE_DIR = user_folders()
+# A preset in the data folder replaces a bundled one of the same name. The .exe also still reads a "presets"
+# folder next to itself, where version 1.1 told users to put their own presets.
+PRESETS_DIRS = [BUNDLE_DIR / "presets"] + ([APP_DIR / "presets"] if FROZEN else []) + [DATA_DIR / "presets"]
+LOG_FILE = CACHE_DIR / "vmr_gui.log"
+LOG_MAX_BYTES = 1000000  # a longer log is renamed to vmr_gui.old.log at start, so that it does not grow forever
 # Page of a livery in the MTL catalog (https://mtl.ivao.aero/catalog).
 CATALOG_SEARCH = "https://mtl.ivao.aero/catalog?textureName={name}"
 # Picture of a livery in the MTL catalog. The thumbnails inside the MTL packages are one generic picture
 # for every livery, but the MTL Installer writes an "ivao.ini" into every texture folder it installs, and
 # its "mtl_version" is the number of the livery in the catalog. With it the catalog picture can be
-# downloaded without an API key. The pictures are kept in the "previews" folder next to the program, so
-# that each one is downloaded only once.
+# downloaded without an API key. The pictures are kept in the "previews" folder in Local AppData, so that
+# each one is downloaded only once.
 CATALOG_IMAGE = "https://download.ivao.aero/v2/aircraftsTextures/{id}/files/latest/image"
-PREVIEWS_DIR = APP_DIR / "previews"
+PREVIEWS_DIR = CACHE_DIR / "previews"
 TEXTURE_INFO_FILE = "ivao.ini"
 # The MTL Installer also keeps a list of every livery in mtl.dat in the MTL folder, one line per livery:
 # "A320AAF,Aigle Azur (AAF),0.0,0.0,11636" (MTL id, catalog name, two numbers, catalog number). It is used
@@ -80,9 +120,22 @@ BROKEN_VERSION_LINE = re.compile(r"^([ \t]*)VERSION\](?=[ \t]*\r?$)", re.MULTILI
 
 # The settings of the last run (VMR name, folder of the last saved VMR, ticked presets and MTL choice).
 # See the "Settings" section below for how the file stays compatible between versions.
-SETTINGS_FILE = APP_DIR / "vmr_gui_settings.json"
-# The user's own rules ("My rules"), kept as a VMR file next to the program (see MyRules below).
-MY_RULES_FILE = APP_DIR / "vmr_gui_my_rules.vmr"
+SETTINGS_FILE = DATA_DIR / "settings.json"
+# The user's own rules ("My rules"), kept as a VMR file (see MyRules below).
+MY_RULES_FILE = DATA_DIR / "my_rules.vmr"
+# Versions before 1.2 kept these two files next to the program, which was usually the IVAO_MTL folder. They
+# are copied to the data folder once (see copy_old_files).
+OLD_FILE_NAMES = {SETTINGS_FILE: "vmr_gui_settings.json", MY_RULES_FILE: "vmr_gui_my_rules.vmr"}
+
+# The releases of the program on GitHub, for the update check (see "Updates" below).
+GITHUB_REPO = "vojta48/create-ivao-vmr"
+LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % GITHUB_REPO
+RELEASES_PAGE = "https://github.com/%s/releases" % GITHUB_REPO
+RELEASE_DOWNLOADS = "https://github.com/%s/releases/download/" % GITHUB_REPO
+EXE_NAME = "IVAO_VMR_Generator.exe"
+# Release builds are signed through SignPath Foundation (see "Code signing policy" in the README). When the
+# running .exe carries a valid signature of this signer, an update is only installed when it carries one too.
+RELEASE_SIGNER = "SignPath Foundation"
 
 
 def read_app_version():
@@ -204,17 +257,22 @@ class Library:
     """The liveries found in SimObjects/Airplanes of the MTL, keyed by their title (the MTL id, e.g. A320TVS)."""
 
     def __init__(self, models_root):
-        self.models_root = Path(models_root)
-        self.airplanes = self.models_root / "SimObjects" / "Airplanes"
+        # models_root None: no MTL was found (see choose_models_root); the library is then empty.
+        self.models_root = Path(models_root) if models_root else None
+        self.airplanes = self.models_root / "SimObjects" / "Airplanes" if self.models_root else None
         self.liveries = {}
         self.errors = []
+        self.catalog_ids = {}
         self.scanned = False
+
+    def found(self):
+        return self.airplanes is not None and self.airplanes.is_dir()
 
     def scan(self):
         self.liveries = {}
         self.errors = []
-        self.catalog_ids = read_mtl_dat(self.models_root / MTL_DAT_FILE)
-        if self.airplanes.is_dir():
+        self.catalog_ids = read_mtl_dat(self.models_root / MTL_DAT_FILE) if self.models_root else {}
+        if self.found():
             for model_dir in sorted(self.airplanes.iterdir(), key=lambda p: p.name):  # the order create_vmr.py uses
                 cfg = model_dir / "aircraft.cfg"
                 if cfg.is_file():
@@ -299,6 +357,220 @@ def _unquote(value):
     if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
         value = value[1:-1]
     return value.strip()
+
+
+# --------------------------------------------------------------------------------------------------
+# Finding the IVAO MTL
+# --------------------------------------------------------------------------------------------------
+#
+# The MTL Installer puts the MTL into the Community folder of the simulator. Where that folder is depends on
+# the simulator and on where it was bought, but each simulator writes the folder of its packages into its
+# UserCfg.opt, for example
+#   InstalledPackagesPath "D:\SteamLibrary\steamapps\common\MSFS2024\Packages"
+# and the Community folder is inside it. The place of UserCfg.opt itself is fixed for each simulator:
+SIMULATORS = [
+    # (name shown to the user, environment variable of the base folder, path of UserCfg.opt inside it)
+    ("MSFS 2024 (Steam)", "APPDATA", ("Microsoft Flight Simulator 2024", "UserCfg.opt")),
+    ("MSFS 2024 (Microsoft Store)", "LOCALAPPDATA", ("Packages", "Microsoft.Limitless_8wekyb3d8bbwe", "LocalCache", "UserCfg.opt")),
+    ("MSFS 2020 (Steam)", "APPDATA", ("Microsoft Flight Simulator", "UserCfg.opt")),
+    ("MSFS 2020 (Microsoft Store)", "LOCALAPPDATA", ("Packages", "Microsoft.FlightSimulator_8wekyb3d8bbwe", "LocalCache", "UserCfg.opt")),
+]
+MTL_FOLDER_NAME = "IVAO_MTL"
+PACKAGES_PATH_LINE = re.compile(r'^[ \t]*InstalledPackagesPath[ \t]+"?([^"\r\n]*?)"?[ \t]*\r?$', re.MULTILINE)
+
+
+def is_mtl_folder(folder):
+    """True when the folder looks like an MTL: it has SimObjects/Airplanes."""
+    try:
+        return bool(folder) and (Path(folder) / "SimObjects" / "Airplanes").is_dir()
+    except OSError:
+        return False
+
+
+def read_packages_path(user_cfg):
+    """The InstalledPackagesPath of a UserCfg.opt, or None. Raises OSError when the file cannot be read."""
+    match = PACKAGES_PATH_LINE.search(_read_text(user_cfg))
+    return match.group(1).strip() if match and match.group(1).strip() else None
+
+
+def mtl_in_community(community):
+    """The MTL folder inside a Community folder, or None. Normally it is IVAO_MTL; a folder whose name starts
+    with IVAO (an MTL renamed or linked by an add-on manager) is accepted as well."""
+    community = Path(community)
+    if is_mtl_folder(community / MTL_FOLDER_NAME):
+        return community / MTL_FOLDER_NAME
+    try:
+        children = sorted(community.iterdir(), key=lambda p: p.name.lower())
+    except OSError:
+        return None
+    for child in children:
+        if child.name.lower().startswith("ivao") and is_mtl_folder(child):
+            return child
+    return None
+
+
+def find_mtl_folders(environ=None):
+    """Every simulator installed for this Windows user, with its Community folder and the MTL in it (None
+    when the MTL is not there): [{"sim": "MSFS 2024 (Steam)", "community": "...", "mtl": "..." or None}]."""
+    environ = os.environ if environ is None else environ
+    found = []
+    for sim, variable, parts in SIMULATORS:
+        if not environ.get(variable):
+            continue
+        try:
+            packages = read_packages_path(Path(environ[variable]).joinpath(*parts))
+        except OSError:
+            continue  # this simulator is not installed
+        if not packages:
+            continue
+        community = Path(packages) / "Community"
+        mtl = mtl_in_community(community)
+        found.append({"sim": sim, "community": str(community), "mtl": str(mtl) if mtl else None})
+    return found
+
+
+def community_of(folder):
+    """The Community folder for a folder the user picked: the folder itself when the MTL is in it, or its parent
+    when the user picked the IVAO_MTL folder itself. None when there is no MTL in either."""
+    folder = Path(folder)
+    if mtl_in_community(folder):
+        return folder
+    if is_mtl_folder(folder) and mtl_in_community(folder.parent) == folder:
+        return folder.parent
+    return None
+
+
+def choose_models_root(directory, community, found, here):
+    """The MTL folder to use and why: (folder or None, reason). Finding it in the simulators is the normal way;
+    the user only has to say where it is when that does not work. In this order:
+    - the MTL folder given on the command line (-d), even when it is not an MTL (the GUI then says so);
+    - the MTL in the Community folder the user chose (the communityFolder setting, or --community), while it is
+      still there;
+    - here (the folder of the .exe, or the current folder when run from source) when it is an MTL: version 1.1
+      had to be started from the IVAO_MTL folder, and users who keep it there still get that MTL;
+    - the MTL found in the Community folder of an installed simulator (the first in SIMULATORS)."""
+    if directory:
+        return directory, "command line"
+    mtl = mtl_in_community(community) if community else None
+    if mtl:
+        return str(mtl), "chosen"
+    if here and is_mtl_folder(here):
+        return str(here), "program folder"
+    for sim in found:
+        if sim["mtl"]:
+            return sim["mtl"], sim["sim"]
+    return None, None
+
+
+def default_output_dir(models_root=None):
+    """Where VMRs are saved before the user chose a folder: the IVAO_MTL folder in use (where create_vmr.py writes
+    its VMRs too), else Documents\\vPilot Files (the folder vPilot keeps its own files in), else Documents."""
+    if models_root and is_mtl_folder(models_root):
+        return Path(models_root)
+    documents = documents_folder()
+    if (documents / "vPilot Files").is_dir():
+        return documents / "vPilot Files"
+    return documents if documents.is_dir() else Path.home()
+
+
+def documents_folder():
+    """The user's Documents folder. Windows can move it (into OneDrive, or a folder with a translated name
+    such as "Dokumenty"), so it is asked from Windows instead of assuming %USERPROFILE%\\Documents."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            buffer = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buffer) == 0 and buffer.value:  # 5: CSIDL_PERSONAL
+                return Path(buffer.value)
+        except (AttributeError, OSError):
+            pass
+    return Path.home() / "Documents"
+
+
+# --------------------------------------------------------------------------------------------------
+# Files of older versions
+# --------------------------------------------------------------------------------------------------
+
+def copy_old_files(folders, presets_dir=None):
+    """Versions before 1.2 kept the settings, my rules and the user's own presets next to the program, usually in
+    the IVAO_MTL folder. They are copied into the data folder:
+    - the settings and my rules from the first of the folders that has them, when the data folder does not have
+      them yet. A rules file without any rule counts as not there: the page writes an empty one at the first start,
+      before the user may have shown the program where the old files are (see App.use_community);
+    - every preset of a "presets" folder there that is not one of the bundled presets (those come with the
+      program, an old copy of them must not hide a newer one) and that the data folder does not have yet.
+    The old files stay where they are (an older copy of the program may still use them), and a file of the user in
+    the data folder is never replaced. Returns the message for the GUI, or None when nothing was copied."""
+    presets_dir = Path(presets_dir) if presets_dir else DATA_DIR / "presets"
+    copied = []
+    for target, old_name in OLD_FILE_NAMES.items():
+        if target.exists() and not _without_rules(target):
+            continue
+        for folder in folders:
+            old = Path(folder) / old_name
+            if old.is_file():
+                if not (target.exists() and _without_rules(old)) and _copy(old, target):
+                    copied.append(str(old))
+                break
+    bundled = {p.name.lower() for p in (BUNDLE_DIR / "presets").glob("*.vmr")}
+    for folder in folders:
+        old_presets = Path(folder) / "presets"
+        if not old_presets.is_dir() or _same_folder(old_presets, BUNDLE_DIR / "presets") or _same_folder(old_presets, presets_dir):
+            continue
+        for old in sorted(old_presets.glob("*.vmr")):
+            target = presets_dir / old.name
+            if old.name.lower() not in bundled and not target.exists() and _copy(old, target):
+                copied.append(str(old))
+    if not copied:
+        return None
+    notice = ("This version keeps your settings, your own rules and your own presets in %s, so the program can be started "
+              "from any folder. These files of the older version were copied there: %s. The old files were not changed; "
+              "you can delete them." % (DATA_DIR, ", ".join(copied)))
+    print("  " + notice)
+    return notice
+
+
+def _without_rules(path):
+    """True for a VMR file without any rule (the settings file is never one)."""
+    if path.suffix.lower() != ".vmr":
+        return False
+    try:
+        return not parse_vmr(_read_text(path))
+    except OSError:
+        return False
+
+
+def _copy(source, target):
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        return True
+    except OSError as err:
+        print("  Could not copy %s to %s: %s" % (source, target, err))
+        return False
+
+
+def _same_folder(a, b):
+    try:
+        return os.path.normcase(str(Path(a).resolve())) == os.path.normcase(str(Path(b).resolve()))
+    except OSError:
+        return False
+
+
+def old_file_folders(here, directory, found, community=None):
+    """The folders where an older version may have kept its files: the folder of the program, the current folder,
+    the folder given with -d, the MTL in the Community folder the user chose and every MTL found in the simulators.
+    Without duplicates."""
+    chosen = mtl_in_community(community) if community else None
+    folders = [here, Path.cwd(), directory, chosen] + [sim["mtl"] for sim in found]
+    unique = {}
+    for folder in folders:
+        if folder:
+            try:
+                unique.setdefault(os.path.normcase(str(Path(folder).resolve())), Path(folder))
+            except OSError:
+                pass
+    return list(unique.values())
 
 
 # --------------------------------------------------------------------------------------------------
@@ -393,13 +665,232 @@ class Previews:
 
 
 # --------------------------------------------------------------------------------------------------
+# Updates
+# --------------------------------------------------------------------------------------------------
+#
+# At start the page asks the server whether GitHub has a newer release (only when the checkForUpdates setting
+# is on, which is the default). The request goes to api.github.com and contains nothing but the usual headers
+# of a web request; the README privacy policy says so. A newer release is offered in a prompt with "Update" and
+# "Ignore"; a development version (see is_development_version and Updater.status) is never offered one.
+# "Update" makes the .exe update itself right away and restart:
+#   1. download IVAO_VMR_Generator.exe of the release into IVAO_VMR_Generator.exe.new next to the running .exe,
+#   2. check its size and, when GitHub gives one, its SHA-256 checksum,
+#   3. check that Windows finds a valid code signature of SignPath Foundation on it (an unsigned .exe from before
+#      code signing was set up may be replaced by an unsigned one with a checksum, see _check_signature),
+#   4. rename the running .exe to .old (Windows allows renaming a running program, not deleting it) and the
+#      new one to the name of the program,
+#   5. start the new .exe and end this one. The next start deletes the .old file.
+# When anything fails before step 4 the running .exe is untouched; when step 4 fails half way it is renamed
+# back. Running from source the program only tells the user about the new release.
+
+class UpdateError(Exception):
+    pass
+
+
+def version_numbers(text):
+    """(1, 2, 0) for "1.2.0", "v1.2.0" or "1.2.0-test"; None for "dev" and other versions that are not a release."""
+    match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)", (text or "").strip())
+    return tuple(int(n) for n in match.groups()) if match else None
+
+
+def is_development_version(text):
+    """Versions that are never offered an update: running from source ("dev") and the builds of the workflow that
+    are not a release (0.0.0). A version newer than the latest release counts as one too (see Updater.status)."""
+    return version_numbers(text) in (None, (0, 0, 0))
+
+
+def parse_release(data):
+    """The parts of a GitHub release (the JSON of the releases/latest API) the update needs."""
+    if not isinstance(data, dict) or version_numbers(data.get("tag_name")) is None:
+        raise UpdateError("GitHub did not return a release of the program")
+    asset = None
+    for item in data.get("assets") or []:
+        url = item.get("browser_download_url") or ""
+        # only the exe of a release of this repository, never a file from anywhere else
+        if item.get("name") == EXE_NAME and url.startswith(RELEASE_DOWNLOADS) and isinstance(item.get("size"), int):
+            digest = item.get("digest") or ""
+            asset = {"url": url, "size": item["size"],
+                     "sha256": digest[len("sha256:"):].lower() if digest.lower().startswith("sha256:") else None}
+    page = data.get("html_url") or ""
+    return {
+        "version": data["tag_name"].strip().lstrip("v"),
+        "numbers": version_numbers(data["tag_name"]),
+        "page": page if page.startswith(RELEASES_PAGE) else RELEASES_PAGE,
+        "notes": data.get("body") or "",
+        "asset": asset,
+    }
+
+
+def signer_of(path):
+    """The subject of the certificate that signed the file, when Windows finds the signature valid; else None.
+    PowerShell's Get-AuthenticodeSignature checks the signature and the certificate chain like Windows Explorer
+    does (Properties, Digital Signatures). The path is passed in an environment variable, never in the command."""
+    if sys.platform != "win32":
+        return None
+    powershell = Path(os.environ.get("SystemRoot") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    command = ("$s = Get-AuthenticodeSignature -LiteralPath $env:IVAO_VMR_CHECK_FILE; "
+               "if ($s.Status -eq 'Valid') { $s.SignerCertificate.Subject }")
+    try:
+        result = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-Command", command],
+                                env=dict(os.environ, IVAO_VMR_CHECK_FILE=str(path)), capture_output=True, text=True,
+                                timeout=120, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError) as err:
+        print("  Could not check the signature of %s: %s" % (path, err))
+        return None
+    return result.stdout.strip() or None
+
+
+def signed_by_release_signer(subject):
+    return bool(subject) and re.search(r"(?:^|,)\s*CN=%s\s*(?:,|$)" % re.escape(RELEASE_SIGNER), subject) is not None
+
+
+class Updater:
+    """Looks for a newer release on GitHub and installs it. exe None: running from source, nothing to replace."""
+
+    def __init__(self, current_version, exe=None):
+        self.current = current_version
+        self.exe = Path(exe) if exe else None
+        self.lock = threading.Lock()
+        self.checked = False
+        self.latest = None
+        self.error = None
+
+    def status(self):
+        """available: the page asks the user to update. development: this version is not a release, or newer than
+        the latest release (a build of a branch that is not released yet); such a version is never asked."""
+        latest, current = self.latest, version_numbers(self.current)
+        development = is_development_version(self.current) or bool(latest and current > latest["numbers"])
+        available = bool(latest and not development and latest["numbers"] > current)
+        return {
+            "checked": self.checked,
+            "current": self.current,
+            "latest": latest["version"] if latest else None,
+            "available": available,
+            "development": development,
+            "page": latest["page"] if latest else RELEASES_PAGE,
+            "notes": latest["notes"] if available else "",
+            "canInstall": bool(available and self.exe and latest["asset"] and sys.platform == "win32"),
+            "error": self.error,
+        }
+
+    def check(self):
+        """Asks GitHub for the latest release (once per run unless asked again). A version that is not a release
+        (running from source: "dev", a workflow build: 0.0.0) never asks."""
+        with self.lock:
+            if is_development_version(self.current):
+                self.checked, self.error = True, None
+                return self.status()
+            try:
+                self.latest, self.error = parse_release(self._get_json(LATEST_RELEASE_API)), None
+            except (urllib.error.URLError, OSError, ValueError, UpdateError) as err:
+                self.error = "Could not check for a new version: %s" % err
+                print("  " + self.error)
+            self.checked = True
+            return self.status()
+
+    def _get_json(self, url):
+        request = urllib.request.Request(url, headers={"User-Agent": "create-ivao-vmr GUI " + self.current,
+                                                       "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def install(self):
+        """Downloads, checks and puts the new .exe in place of the running one (steps 1 to 4 above). Returns the
+        path of the program to start. Raises UpdateError with a message for the user."""
+        with self.lock:
+            status = self.status()
+            if not status["canInstall"]:
+                raise UpdateError("There is no update to install here. Download the new version from %s." % status["page"])
+            asset = self.latest["asset"]
+            new = self.exe.with_name(self.exe.name + ".new")
+            try:
+                self._download(asset, new)
+                self._check_signature(new, asset)
+                self._swap(new)
+            except (urllib.error.URLError, OSError) as err:
+                raise UpdateError("The update could not be installed: %s. Download it from %s instead." % (err, status["page"]))
+            finally:
+                for leftover in (new, new.with_name(new.name + ".part")):
+                    try:
+                        leftover.unlink()
+                    except OSError:
+                        pass
+            print("  Updated to version %s." % self.latest["version"])
+            return self.exe
+
+    def _download(self, asset, target):
+        part = target.with_name(target.name + ".part")
+        request = urllib.request.Request(asset["url"], headers={"User-Agent": "create-ivao-vmr GUI " + self.current})
+        checksum, size = hashlib.sha256(), 0
+        with urllib.request.urlopen(request, timeout=60) as response, open(part, "wb") as out:
+            while True:
+                block = response.read(1 << 16)
+                if not block:
+                    break
+                size += len(block)
+                if size > asset["size"]:
+                    break
+                checksum.update(block)
+                out.write(block)
+        if size != asset["size"]:
+            raise UpdateError("The download was incomplete or too large (%d bytes instead of %d)." % (size, asset["size"]))
+        if asset["sha256"] and checksum.hexdigest() != asset["sha256"]:
+            raise UpdateError("The downloaded file does not have the checksum GitHub gives for it, so it was not installed.")
+        part.replace(target)
+
+    def _check_signature(self, new, asset):
+        """An update never lowers the trust in the program: when the running .exe is signed by SignPath Foundation,
+        the new one has to be signed by it as well. Releases made before code signing was set up are not signed;
+        an unsigned .exe may only be replaced by an unsigned one whose SHA-256 checksum GitHub published, which is
+        as safe as downloading it from the release page by hand."""
+        subject = signer_of(new)
+        if signed_by_release_signer(subject):
+            return
+        if signed_by_release_signer(signer_of(self.exe)):
+            raise UpdateError("The downloaded file is not signed by %s (%s), so it was not installed."
+                              % (RELEASE_SIGNER, "signed by " + subject if subject else "no valid signature"))
+        if not asset["sha256"]:
+            raise UpdateError("The downloaded file is not signed and GitHub gives no checksum for it, so it was not installed.")
+
+    def _swap(self, new):
+        old = self.exe.with_name(self.exe.name + ".old")
+        try:
+            old.unlink()
+        except FileNotFoundError:
+            pass
+        self.exe.replace(old)
+        try:
+            new.replace(self.exe)
+        except OSError:
+            old.replace(self.exe)
+            raise
+
+
+def remove_old_exe(exe):
+    """Deletes the .old file a previous update left next to the .exe (it could not be deleted while it ran)."""
+    try:
+        Path(str(exe) + ".old").unlink()
+    except OSError:
+        pass
+
+
+def start_program(exe, arguments):
+    """Starts the updated .exe on its own. A one-file PyInstaller program passes its unpacked folder to programs
+    it starts; PYINSTALLER_RESET_ENVIRONMENT makes the new one unpack its own files instead."""
+    env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")
+    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    subprocess.Popen([str(exe)] + list(arguments), env=env, close_fds=True, creationflags=flags, cwd=str(Path(exe).parent))
+
+
+# --------------------------------------------------------------------------------------------------
 # Settings
 # --------------------------------------------------------------------------------------------------
 #
-# The settings of the last run are kept in vmr_gui_settings.json next to the program, for example:
+# The settings of the last run are kept in settings.json in the data folder (before 1.2: vmr_gui_settings.json
+# next to the program, see copy_old_files), for example:
 #   {"settingsVersion": 1, "createdBy": "1.2.0", "savedBy": "1.3.0", "fileName": "my rules.vmr",
 #    "lastFolder": "C:\\Users\\me\\Documents\\vPilot Files", "selectedPresets": ["smartwings_group"],
-#    "mtlRules": {"enabled": true, "mode": "standard"}}
+#    "mtlRules": {"enabled": true, "mode": "standard"}, "communityFolder": "", "checkForUpdates": true}
 # createdBy and savedBy are the program versions that created the file and wrote it last; they are only
 # information. Whether a file can be used is decided by settingsVersion, the version of the file format, so
 # that a new program version keeps the settings of the previous one:
@@ -442,13 +933,27 @@ def _mtl_setting(value):
     return {"enabled": enabled, "mode": mode}
 
 
+def _bool_setting(value):
+    if not isinstance(value, bool):
+        raise ValueError(value)
+    return value
+
+
 # Every setting with its default and the function that checks (and cleans) a value read from the file.
 SETTINGS = {
     "fileName": ("custom.vmr", _file_name_setting),
     "lastFolder": ("", _folder_setting),
     "selectedPresets": ([], _presets_setting),
     "mtlRules": ({"enabled": False, "mode": "standard"}, _mtl_setting),
+    # added in 1.2: the Community folder the user chose in the GUI ("" = find it in the simulators), and the update
+    # check at start
+    "communityFolder": ("", _folder_setting),
+    "checkForUpdates": (True, _bool_setting),
 }
+# The settings the page may change through /api/settings. The Community folder is not one of them: the server only
+# reads folders the user picked in the folder dialog of the window or that were found in the simulators
+# (see /api/community), never a path a request sends.
+PAGE_SETTINGS = ("fileName", "selectedPresets", "mtlRules", "checkForUpdates")
 
 
 def default_settings():
@@ -544,7 +1049,8 @@ class Settings:
 # --------------------------------------------------------------------------------------------------
 
 class MyRules:
-    """The user's own rules ("My rules" in the GUI), kept in vmr_gui_my_rules.vmr next to the program.
+    """The user's own rules ("My rules" in the GUI), kept in my_rules.vmr in the data folder (before 1.2:
+    vmr_gui_my_rules.vmr next to the program, see copy_old_files).
 
     The file is an ordinary VMR, the format vPilot reads, so it does not change between versions of this
     program and is never deleted with the settings; it can also be opened or imported anywhere. Only complete
@@ -582,20 +1088,25 @@ class MyRules:
                     print("  My rules could not be saved to %s: %s" % (self.path, err))
             return self.rules
 
-    def remove_missing(self, library):
+    def remove_missing(self, library, others=()):
         """The IVAO MTL changes: liveries are removed or renamed. A rule loses the liveries that are no longer
         installed, and a rule left without any livery is removed. This is done once per run, and only when the
         MTL was found and read without problems: with a wrong models folder or a damaged aircraft.cfg the
-        liveries are only missing for now, and removing rules then would throw away the user's work."""
+        liveries are only missing for now, and removing rules then would throw away the user's work.
+        others: the MTLs of the other simulators on this computer (a user with MSFS 2020 and 2024 can have a
+        livery in one MTL only). A livery is only missing when none of them has it, and nothing is removed when
+        one of them could not be read without problems either."""
         if self.checked or not self.rules:
             return
         self.checked = True
-        if not library.airplanes.is_dir() or not library.liveries or library.errors:
-            return
+        for mtl in [library] + list(others):
+            if mtl.airplanes is None or not mtl.airplanes.is_dir() or not mtl.liveries or mtl.errors:
+                return
+        everywhere = set(library.liveries).union(*[set(mtl.liveries) for mtl in others])
         kept, removed, shortened = [], [], []
         for rule in self.rules:
-            installed = [m for m in rule["models"] if m in library.liveries]
-            missing = [m for m in rule["models"] if m not in library.liveries]
+            installed = [m for m in rule["models"] if m in everywhere]
+            missing = [m for m in rule["models"] if m not in everywhere]
             name = "%s %s" % (rule["callsign"] or rule.get("exactCallsign") or "*", rule["type"])
             if not installed:
                 removed.append("%s (%s)" % (name, ", ".join(missing)))
@@ -628,19 +1139,61 @@ class MyRules:
 # --------------------------------------------------------------------------------------------------
 
 class App:
-    def __init__(self, models_root, output_dir=None, settings=None, my_rules=None):
-        """output_dir None: the folder of the last saved VMR (from the settings), or DEFAULT_DIR. A folder given
-        on the command line (-p) always wins and is kept for the whole run."""
+    def __init__(self, models_root, output_dir=None, settings=None, my_rules=None, mtl_folders=None, updater=None):
+        """models_root None: no MTL was found. output_dir None: the folder the user chose or saved to last (from
+        the settings), or default_output_dir() (the MTL folder). A folder given on the command line (-p) is used
+        for the whole run unless the user chooses another one. mtl_folders: the simulators found by find_mtl_folders."""
         self.library = Library(models_root)
         self.settings = settings or Settings(None)
         self.my_rules = my_rules or MyRules(None)
+        self.mtl_folders = mtl_folders or []
+        self.mtl_reason = None    # why this MTL is used (see choose_models_root), shown in the GUI
+        self.here = None          # the folder of the program (see choose_models_root), set in main()
+        self.take_over_old_files = False  # copy the files of version 1.1 from an MTL the user chooses (set in main())
+        self.updater = updater or Updater(APP_VERSION)
+        self.files_notice = None  # the message about files copied from an older version (see copy_old_files)
+        self.restart = None       # set when an update was installed: the program to start before this one ends
         self.fixed_output_dir = output_dir is not None
-        last = self.settings.values["lastFolder"]
-        if output_dir is None:
-            output_dir = last if last and Path(last).is_dir() else DEFAULT_DIR
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir) if output_dir is not None else self._remembered_output_dir()
         self.previews = Previews(PREVIEWS_DIR)
         self.scan_lock = threading.Lock()
+
+    def _remembered_output_dir(self):
+        last = self.settings.values["lastFolder"]
+        return Path(last) if last and Path(last).is_dir() else default_output_dir(self.library.models_root)
+
+    def use_community(self, community):
+        """Switches to the MTL in another Community folder (chosen in the GUI) and remembers it for the next start.
+        community None: back to finding the MTL in the simulators, the normal way."""
+        if community:
+            models_root, reason = str(mtl_in_community(community)), "chosen"
+        else:
+            models_root, reason = choose_models_root(None, "", self.mtl_folders, self.here)
+        if models_root and self.take_over_old_files:
+            self._take_over_old_files(models_root)
+        with self.scan_lock:
+            self.library, self.mtl_reason = Library(models_root), reason
+        if not self.fixed_output_dir:
+            self.output_dir = self._remembered_output_dir()
+        self.settings.update({"communityFolder": str(community) if community else ""})
+
+    def _take_over_old_files(self, models_root):
+        """The MTL the user just chose may hold the files of version 1.1 that the start could not find (the MTL
+        was not found then). When they are copied, the settings and my rules are read again from the data folder."""
+        notice = copy_old_files([models_root])
+        if notice:
+            self.settings = Settings(self.settings.path).load()
+            self.my_rules = MyRules(self.my_rules.path).load()
+            self.files_notice = notice
+
+    def set_output_dir(self, folder):
+        """The output folder the user chose in the GUI; it is kept for the next start."""
+        self.output_dir = Path(folder)
+        self.settings.update({"lastFolder": str(self.output_dir)})
+
+    def take_files_notice(self):
+        notice, self.files_notice = self.files_notice, None
+        return notice
 
     def saved(self, path):
         """Remembers where a VMR was saved: the next VMR goes to the same folder, under the same name."""
@@ -658,9 +1211,15 @@ class App:
         return self.library
 
     def checked_my_rules(self):
-        """My rules without the liveries that are no longer installed (see MyRules.remove_missing).
-        None when there is no rules file yet."""
-        self.my_rules.remove_missing(self.scanned_library())
+        """My rules without the liveries that are no longer installed in any MTL on this computer (see
+        MyRules.remove_missing). None when there is no rules file yet."""
+        library = self.scanned_library()
+        others = []
+        if not self.my_rules.checked and self.my_rules.rules and library.found():
+            # the MTLs of the other simulators are only read for this check, and only when there is more than one
+            others = [Library(sim["mtl"]).scan() for sim in self.mtl_folders
+                      if sim["mtl"] and not _same_folder(sim["mtl"], library.models_root)]
+        self.my_rules.remove_missing(library, others)
         return self.my_rules.rules
 
 
@@ -721,11 +1280,16 @@ class Handler(BaseHTTPRequestHandler):
             name = Path(path[len("/static/"):]).name
             self.send_file(GUI_DIR / name)
         elif path == "/api/state":
-            app.scanned_library()
+            library = app.scanned_library()
             self.send_json({
-                "modelsRoot": str(app.library.models_root),
-                "airplanesFolder": str(app.library.airplanes),
-                "libraryFound": app.library.airplanes.is_dir(),
+                "modelsRoot": str(library.models_root) if library.models_root else None,
+                "airplanesFolder": str(library.airplanes) if library.airplanes else None,
+                "libraryFound": library.found(),
+                "mtlReason": app.mtl_reason,
+                "mtlFolders": app.mtl_folders,
+                "communityFolder": app.settings.values["communityFolder"],
+                "dataDir": str(DATA_DIR),
+                "presetsDir": str(DATA_DIR / "presets"),
                 "outputDir": str(app.output_dir),
                 "liveries": app.library.summary(),
                 "errors": app.library.errors,
@@ -738,6 +1302,7 @@ class Handler(BaseHTTPRequestHandler):
                 "settingsNotice": app.settings.take_notice(),
                 "myRules": app.checked_my_rules(),
                 "myRulesNotice": app.my_rules.take_notice(),
+                "filesNotice": app.take_files_notice(),
             })
         elif path == "/api/rescan":
             app.library.scan()
@@ -746,6 +1311,11 @@ class Handler(BaseHTTPRequestHandler):
                 "errors": app.library.errors,
                 "mtlRules": {"all": app.library.mtl_rules(False), "standard": app.library.mtl_rules(True)},
             })
+        elif path == "/api/update":
+            # asks GitHub once per run, and only when the user has not switched the check off
+            if not app.updater.checked and app.settings.values["checkForUpdates"] and not SELF_TEST:
+                app.updater.check()
+            self.send_json(dict(app.updater.status(), enabled=app.settings.values["checkForUpdates"]))
         elif path.startswith("/api/preview/"):
             # the catalog picture of a livery (downloaded on first use, then served from the previews folder)
             livery = app.scanned_library().liveries.get(urllib.parse.unquote(path[len("/api/preview/"):]))
@@ -797,10 +1367,59 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.send_json({"rules": app.my_rules.save(rules)})
         elif path == "/api/settings":
-            # the page sends the settings it changed (file name, ticked presets, MTL choice)
-            self.send_json({"settings": app.settings.update(data.get("settings") or {})})
+            # the page sends the settings it changed (file name, ticked presets, MTL choice, update check)
+            changes = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+            self.send_json({"settings": app.settings.update({k: v for k, v in changes.items() if k in PAGE_SETTINGS})})
+        elif path == "/api/community":
+            # switch to the Community folder of another simulator that was found, or (null) back to finding the
+            # MTL by itself. Any other folder only through the folder dialog of the window
+            # (JsApi.choose_community_folder), so that no request can make the server read a path of its choice.
+            community = data.get("community")
+            if community is not None and community not in [sim["community"] for sim in app.mtl_folders if sim["mtl"]]:
+                self.send_json({"error": "Not a Community folder with the MTL found in your simulators"}, 400)
+                return
+            app.use_community(community)
+            self.send_json({"modelsRoot": str(app.library.models_root) if app.library.models_root else None})
+        elif path == "/api/output-folder":
+            # back to the default output folder (the MTL folder); any other folder only through the folder dialog
+            if not data.get("default"):
+                self.send_json({"error": "Choose the folder in the window"}, 400)
+                return
+            app.settings.update({"lastFolder": ""})
+            app.fixed_output_dir = False
+            app.output_dir = app._remembered_output_dir()
+            self.send_json({"outputDir": str(app.output_dir)})
+        elif path == "/api/update":
+            action = data.get("action")
+            if action == "check":
+                # "Check now": also when the check at start is switched off
+                self.send_json(dict(app.updater.check(), enabled=app.settings.values["checkForUpdates"]))
+            elif action == "install":
+                try:
+                    app.restart = app.updater.install()
+                except UpdateError as err:
+                    self.send_json({"error": str(err)}, 500)
+                    return
+                self.send_json({"installed": app.updater.latest["version"]})
+                # the answer has to reach the page before the program ends
+                threading.Thread(target=finish_update, args=(app,), daemon=True).start()
+            else:
+                self.send_json({"error": "Unknown action"}, 400)
         else:
             self.send_error(404)
+
+
+def finish_update(app, delay=1.0):
+    """Starts the updated program and ends this one (step 5 of the update)."""
+    import time
+    time.sleep(delay)
+    try:
+        start_program(app.restart, sys.argv[1:])
+    except OSError as err:
+        # the new .exe is in place already; the user only has to start it
+        print("  Could not start the updated program: %s" % err)
+    sys.stdout.flush()
+    os._exit(0)
 
 
 class JsApi:
@@ -843,6 +1462,37 @@ class JsApi:
         except OSError as err:
             return {"error": str(err)}
 
+    def _choose_folder(self, start):
+        import webview
+        result = self._window.create_file_dialog(webview.FileDialog.FOLDER, directory=str(start or ""))
+        if not result:
+            return None
+        return Path(result[0] if isinstance(result, (list, tuple)) else result)
+
+    def choose_community_folder(self):
+        """Shows the folder dialog and uses the MTL in the chosen Community folder. Picking the IVAO_MTL folder
+        itself is accepted as well (its Community folder is remembered)."""
+        library = self._app.library if self._app else None
+        folder = self._choose_folder(library.models_root.parent if library and library.models_root else "")
+        if folder is None:
+            return {"cancelled": True}
+        community = community_of(folder)
+        if community is None:
+            return {"error": "There is no IVAO MTL in %s. Choose the Community folder of your simulator, the one that "
+                             "contains the IVAO_MTL folder." % folder}
+        if self._app:
+            self._app.use_community(community)
+        return {"community": str(community)}
+
+    def choose_output_folder(self):
+        """Shows the folder dialog and saves the next VMRs into the chosen folder."""
+        folder = self._choose_folder(self._app.output_dir if self._app else "")
+        if folder is None:
+            return {"cancelled": True}
+        if self._app:
+            self._app.set_output_dir(folder)
+        return {"outputDir": str(folder)}
+
 
 def show_window(url, server, app=None):
     """Shows the GUI in its own window. Returns False when pywebview is not available."""
@@ -883,16 +1533,34 @@ def show_window(url, server, app=None):
 
 def main():
     parser = argparse.ArgumentParser(description="GUI for building a custom vPilot VMR on top of the IVAO MTL.")
-    parser.add_argument("-d", "--directory", default=DEFAULT_DIR, help="folder that contains SimObjects/Airplanes (default: %s)" % ("the folder of the .exe" if FROZEN else "current folder"))
-    parser.add_argument("-p", "--output-directory", default=None, help="folder where VMR files are saved (default: the folder of the last saved VMR, the first time the same folder as -d)")
+    parser.add_argument("-d", "--directory", default=None, help="folder that contains SimObjects/Airplanes (default: the MTL found in the Community folder of your simulator)")
+    parser.add_argument("-c", "--community", default=None, help="the Community folder that contains the IVAO_MTL folder, when it is not found by itself (default: the one chosen in the GUI, else found in your simulator)")
+    parser.add_argument("-p", "--output-directory", default=None, help="folder where VMR files are saved (default: the folder chosen in the GUI or saved to last, the first time the IVAO_MTL folder)")
     parser.add_argument("--port", type=int, default=8765, help="port of the local server (default: 8765, a free port is used if it is taken)")
     parser.add_argument("--browser", action="store_true", help="show the GUI in the web browser instead of its own window")
     parser.add_argument("--no-browser", action="store_true", help="only run the server, do not open a window or a browser")
     args = parser.parse_args()
 
     print("IVAO VMR generator GUI " + APP_VERSION)
+    # The .exe works in its own folder, because Windows does not always start a double-clicked program in the
+    # folder it lies in; the script works in the folder it is run from.
+    here = APP_DIR if FROZEN else Path.cwd()
+    if FROZEN:
+        remove_old_exe(sys.executable)
+    found = find_mtl_folders()
+    for sim in found:
+        print("  Found %s: %s" % (sim["sim"], sim["mtl"] or "no IVAO MTL in " + sim["community"]))
     settings = Settings(SETTINGS_FILE).load()
-    app = Handler.app = App(args.directory, args.output_directory, settings, MyRules(MY_RULES_FILE).load())
+    community = args.community or settings.values["communityFolder"]
+    # the files of version 1.1, also from the MTL of the Community folder chosen before (then read the settings again)
+    files_notice = copy_old_files(old_file_folders(here, args.directory, found, community))
+    if files_notice:
+        notice, settings = settings.notice, Settings(SETTINGS_FILE).load()
+        settings.notice = settings.notice or notice
+    models_root, reason = choose_models_root(args.directory, community, found, here)
+    updater = Updater(APP_VERSION, sys.executable if FROZEN else None)
+    app = Handler.app = App(models_root, args.output_directory, settings, MyRules(MY_RULES_FILE).load(), found, updater)
+    app.mtl_reason, app.files_notice, app.here, app.take_over_old_files = reason, files_notice, here, True
     try:
         server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     except OSError:
@@ -901,7 +1569,7 @@ def main():
     url = "http://127.0.0.1:%d/" % server.server_address[1]
     print("  Settings: " + str(SETTINGS_FILE))
     print("  My rules: " + str(MY_RULES_FILE))
-    print("  Models folder: " + os.path.abspath(args.directory))
+    print("  Models folder: " + (os.path.abspath(models_root) + " (%s)" % reason if models_root else "no IVAO MTL found"))
     print("  Output folder: " + os.path.abspath(app.output_dir))
     print("  GUI address: " + url)
 
@@ -941,13 +1609,21 @@ def report_crash(text):
             pass
 
 
+def open_log():
+    """The .exe has no console window: what the program prints goes to vmr_gui.log in Local AppData. A log that has
+    grown too long is kept once as vmr_gui.old.log."""
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if LOG_FILE.is_file() and LOG_FILE.stat().st_size > LOG_MAX_BYTES:
+            LOG_FILE.replace(LOG_FILE.with_name("vmr_gui.old.log"))
+        sys.stdout = sys.stderr = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
     if FROZEN:
-        # The .exe has no console window: keep what the program prints in a log file next to it.
-        try:
-            sys.stdout = sys.stderr = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
-        except OSError:
-            pass
+        open_log()
     if SELF_TEST:
         # Backstop for the build workflow: never hang around, whatever the window does.
         def watchdog():

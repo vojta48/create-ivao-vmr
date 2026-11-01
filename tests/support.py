@@ -1,9 +1,12 @@
 # Helpers shared by the tests: a fake IVAO MTL on disk, running create_vmr.py on it, reading VMR files and
 # running the GUI server. Standard library only.
 
+import atexit
 import contextlib
 import importlib
 import io
+import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -14,6 +17,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+# The GUI keeps its files in the user's AppData. The tests (and the programs they start) use a temporary folder
+# instead, so that they never read or change the real settings and rules of whoever runs them.
+DATA_DIR = tempfile.mkdtemp(prefix="ivao-vmr-tests-")
+os.environ["IVAO_VMR_GUI_DATA_DIR"] = DATA_DIR
+atexit.register(shutil.rmtree, DATA_DIR, True)
 
 import create_vmr  # noqa: E402
 import vmr_gui  # noqa: E402

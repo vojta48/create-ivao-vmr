@@ -13,14 +13,26 @@ Both generate exactly the same rules from the MTL.
    - MSFS 2024 (Steam): `...\steamapps\common\MSFS2024\Packages\Community\IVAO_MTL`
    - MSFS 2020 (Steam): `...\steamapps\common\MicrosoftFlightSimulator\Packages\Community\IVAO_MTL`
    - Microsoft Store versions: the `Community` folder inside the packages folder chosen when the sim was installed (`InstalledPackagesPath` in the sim's `UserCfg.opt`).
+
+   The GUI finds this folder by itself (see [Which MTL is used](#which-mtl-is-used)); only `create_vmr.py` has to be put into it.
 2. Install [vPilot](https://vpilot.rosscarlson.dev/) and make sure it finds your simulator.
 
 ## IVAO VMR Generator (GUI)
 
 ### Start it
-**Portable .exe (no Python, no installation):** download `IVAO_VMR_Generator.exe` from the [releases](https://github.com/vojta48/create-ivao-vmr/releases), put it into your `IVAO_MTL` folder and double-click it. The program opens in its own window, using the Microsoft Edge WebView2 runtime that is part of Windows 10 and 11. The version is shown next to the title. The exe is not code signed, so Windows SmartScreen may warn about an unknown publisher the first time you run it; click *More info → Run anyway*. Only use a copy you downloaded from this project's releases or built yourself (see [Privacy](#privacy)).
+**Portable .exe (no Python, no installation):** download `IVAO_VMR_Generator.exe` from the [releases](https://github.com/vojta48/create-ivao-vmr/releases), put it anywhere you like (the desktop, a folder of your tools) and double-click it. The program opens in its own window, using the Microsoft Edge WebView2 runtime that is part of Windows 10 and 11. The version is shown next to the title. Release builds are code signed (see [Code signing policy](#code-signing-policy)). A build you take from a workflow run under *Actions* is not signed, so Windows SmartScreen may warn about an unknown publisher; use such a file only if you trust where it came from.
 
-**From source:** put `create_vmr.py`, `vmr_gui.py`, the `gui` folder and the `presets` folder into your `IVAO_MTL` folder and run `python vmr_gui.py` (requires [Python](https://www.python.org/) 3). With `pip install pywebview` it opens in its own window; without it, it opens in your browser at http://127.0.0.1:8765.
+**From source:** run `python vmr_gui.py` from the folder with `create_vmr.py`, `vmr_gui.py`, the `gui` folder and the `presets` folder (requires [Python](https://www.python.org/) 3). With `pip install pywebview` it opens in its own window; without it, it opens in your browser at http://127.0.0.1:8765.
+
+### Which MTL is used
+The program reads where your simulator keeps its packages from the simulator's `UserCfg.opt`, and looks for the `IVAO_MTL` folder in its `Community` folder. This works for MSFS 2020 and MSFS 2024, both the Steam and the Microsoft Store versions. The folder in use is shown at the top of the left column.
+
+Normally you don't have to do anything. For the cases where you do:
+- If you have the MTL in more than one simulator, the first one found is used: MSFS 2024 before MSFS 2020, Steam before Microsoft Store. You can switch to the other one there.
+- If the MTL is not found (for example because your `Community` folder is somewhere unusual), click *Choose the Community folder…* and pick the `Community` folder that contains `IVAO_MTL`. Picking the `IVAO_MTL` folder itself works too.
+- The folder you choose is remembered. *Find it automatically* goes back to the automatic lookup.
+- If you still keep the .exe in the `IVAO_MTL` folder, as version 1.1 needed, that MTL is used.
+- On the command line, `-c <Community folder>` sets the Community folder and `-d <IVAO_MTL folder>` sets the MTL folder, each for one run.
 
 ### Build your VMR
 The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win:
@@ -29,7 +41,7 @@ The VMR is put together from three parts, in this order. vPilot uses the first r
    - `smartwings_group`: Smartwings, Smartwings Poland/Hungary/Slovakia and Czech Airlines, which fly each other's aircraft.
    - `extra_rules`: liveries missing from the MTL, substituted with a similar one.
 
-   Every `.vmr` file in the `presets` folder is offered as a preset, and a `<!-- comment -->` in the file is shown as its description. With the .exe, create a `presets` folder next to it for your own files. A preset there replaces a built-in one with the same name.
+   Every `.vmr` file in the `presets` folder is offered as a preset, and a `<!-- comment -->` in the file is shown as its description. Put your own presets into `%APPDATA%\IVAO VMR Generator\presets` (create the folder). A preset there replaces a built-in one with the same name. A `presets` folder next to the .exe, where version 1.1 read them, still works.
 2. **My rules**: one line per rule.
    - **Callsign**: the 3-letter airline code. Leave it empty for any callsign.
    - **Type**: the ICAO aircraft type.
@@ -40,20 +52,47 @@ The VMR is put together from three parts, in this order. vPilot uses the first r
 
 The right column lists every livery installed in your MTL with its picture, catalog name, type and airline, and marks special liveries. Search by airline, type, id or name. The ↗ opens a livery in the [MTL catalog](https://mtl.ivao.aero/catalog). If some `aircraft.cfg` files of your MTL cannot be read, or contain liveries without a type, without a title or with a title another livery already uses, the GUI lists them above the liveries. Those liveries are missing until you repair the MTL with the MTL Installer.
 
-**Save** writes the file to the output folder, or anywhere through *Save as…*. The first time, the output folder is the folder of the program; after that it is the folder you saved to last, and *Save as…* opens there too.
+**Save** writes the file to the output folder, or anywhere through *Save as…*.
+- The output folder is the `IVAO_MTL` folder, where `create_vmr.py` writes its VMRs too. Without an MTL it is `Documents\vPilot Files` (the folder vPilot keeps its own files in), or `Documents`.
+- *Change…* next to the output folder picks another one. *Save as…* to another folder also makes that folder the output folder. *Use the IVAO_MTL folder* goes back.
+- The output folder is remembered.
+- The MTL Installer does not know about your VMR in the `IVAO_MTL` folder. If you ever reinstall the MTL from scratch, save the VMR again.
 
-**Your settings are remembered.** The program keeps the name of the VMR, the folder you saved it to, the ticked presets and the MTL choice in `vmr_gui_settings.json` next to it, and starts with them the next time. A new version of the program keeps using that file. The file records which version created it. Only when a version changes the file in a way the old file cannot follow is the old file deleted: the program then shows a message that the settings were from a version that is no longer supported and were reset to the defaults. A damaged settings file is handled the same way. You can delete the file at any time to start from the defaults.
+**Where the program keeps its files.** Nothing is written next to the program, so it can be started from any folder:
+- `%APPDATA%\IVAO VMR Generator`: your settings (`settings.json`), your own rules (`my_rules.vmr`) and your own presets (`presets`).
+- `%LOCALAPPDATA%\IVAO VMR Generator`: the log (`vmr_gui.log`) and the downloaded livery pictures (`previews`).
 
-**Your own rules are remembered too.** *My rules* are kept in `vmr_gui_my_rules.vmr` next to the program, an ordinary VMR file that you can also open or import elsewhere. It is separate from the settings, so a settings reset never touches your rules. Rules you are still typing (no type or no livery yet) are not stored. Rules that older versions kept in the page's browser storage are moved into the file at the first start.
+Type the path into the address bar of Windows Explorer to open the folder.
 
-**When the IVAO MTL changes.** At every start the program compares your rules with the liveries that are installed. A livery that is no longer installed is removed from your rules, and a rule left without any livery is removed. The program then shows what it removed. Nothing is removed when the MTL is not found, or when some of its `aircraft.cfg` files cannot be read, because then the liveries are probably only missing for the moment.
+**Moving from version 1.1.** Version 1.1 kept your settings, your rules and your own presets next to the program, usually in the `IVAO_MTL` folder. Version 1.2 copies them into `%APPDATA%\IVAO VMR Generator` and says so.
+- This happens at the first start, or when you choose the Community folder because the MTL was not found by itself.
+- Built-in presets are not copied, because the program brings newer ones itself.
+- Nothing of yours that is already there is replaced.
+- The old files are left as they are, and you can delete them.
 
-**Where the pictures come from.** The thumbnails inside the MTL packages are the same generic picture for every livery, so the GUI shows the pictures from the MTL catalog instead. It finds the catalog number of each livery in the `ivao.ini` that the MTL Installer writes into every texture folder, or in the installer's `mtl.dat`. That number is all the download needs: no IVAO account, no API key. Each picture is downloaded the first time it is shown and kept in the `previews` folder next to the program, so it works offline afterwards. You can delete that folder at any time.
+**Your settings are remembered.** The program keeps the name of the VMR, the output folder, the ticked presets, the MTL choice, the Community folder you chose and whether to check for updates in `settings.json`, and starts with them the next time. A new version of the program keeps using that file. The file records which version created it. Only when a version changes the file in a way the old file cannot follow is the old file deleted: the program then shows a message that the settings were from a version that is no longer supported and were reset to the defaults. A damaged settings file is handled the same way. You can delete the file at any time to start from the defaults.
+
+**Your own rules are remembered too.** *My rules* are kept in `my_rules.vmr`, an ordinary VMR file that you can also open or import elsewhere. It is separate from the settings, so a settings reset never touches your rules. Rules you are still typing (no type or no livery yet) are not stored. Rules that older versions kept in the page's browser storage are moved into the file at the first start.
+
+**When the IVAO MTL changes.** At every start the program compares your rules with the liveries that are installed.
+- A livery that is no longer installed is removed from your rules, and a rule left without any livery is removed. The program then shows what it removed.
+- If you have the MTL in both MSFS 2020 and 2024, a livery is only removed when neither MTL has it, so switching between the simulators never costs you rules.
+- Nothing is removed when an MTL is not found, or when some of its `aircraft.cfg` files cannot be read, because then the liveries are probably only missing for the moment.
+
+**Where the pictures come from.** The thumbnails inside the MTL packages are the same generic picture for every livery, so the GUI shows the pictures from the MTL catalog instead. It finds the catalog number of each livery in the `ivao.ini` that the MTL Installer writes into every texture folder, or in the installer's `mtl.dat`. That number is all the download needs: no IVAO account, no API key. Each picture is downloaded the first time it is shown and kept in the `previews` folder in `%LOCALAPPDATA%\IVAO VMR Generator`, so it works offline afterwards. You can delete that folder at any time.
+
+**Updates.** At start the program asks GitHub whether there is a newer release. If there is, it asks you with *Update* and *Ignore*, and shows what's new.
+- *Update* downloads the new `IVAO_VMR_Generator.exe` right away, puts it in place of the old one and restarts the program. Your settings and rules are kept.
+- *Ignore* closes the question until the next start. *Check now* under *Program* asks again.
+- A version newer than the latest release (a development build) is never offered an update. Neither are test builds (`0.0.0`) and the program run from source.
+- The update is only installed when the file is complete and matches the checksum GitHub publishes for it. If the program you have is signed by SignPath Foundation, Windows must confirm the same signature on the new one; a signed program is never replaced by an unsigned one. If anything fails, the program you have stays as it is, and you can download the new version from the release page.
+- If the .exe is in a folder Windows does not let you change (such as `Program Files`), download the new version yourself.
+- To stop the check at start, untick *Check for a new version at start* under *Program*. *Check now* still asks GitHub when you click it.
 
 ### Options
-`-d` the folder that contains `SimObjects` (default: the current folder, or for the .exe the folder it is in) · `-p` the output folder (default: the folder you saved to last; `-p` overrides it for that run) · `--port` the port of the local server (a free one is used if it is taken) · `--browser` use the web browser instead of the window · `--no-browser` only run the server.
+`-c` the Community folder that contains `IVAO_MTL` · `-d` the `IVAO_MTL` folder itself (default for both: see [Which MTL is used](#which-mtl-is-used)) · `-p` the output folder (default: the folder you chose or saved to last, the first time the `IVAO_MTL` folder; `-p` overrides it for that run) · `--port` the port of the local server (a free one is used if it is taken) · `--browser` use the web browser instead of the window · `--no-browser` only run the server.
 
-If the .exe runs into a problem, it shows a message and writes the details to `vmr_gui.log` next to the .exe.
+If the .exe runs into a problem, it shows a message and writes the details to `vmr_gui.log` in `%LOCALAPPDATA%\IVAO VMR Generator`.
 
 ## create_vmr.py (command line)
 Put `create_vmr.py` into your `IVAO_MTL` folder, open a terminal there and run:
@@ -126,8 +165,9 @@ If the script cannot write the fix (for example because the file is read-only), 
 
 ## Development
 - Tests: `python -m unittest discover -s tests` (standard library only, no MTL needed; the JavaScript tests also need Node.js). They cover the script, the GUI server and front end, and check that `create_vmr.py` and the GUI generate the same rules. The workflow runs them before every build. To also check against your installed MTL (read-only), set `IVAO_MTL_DIR` to its folder and run `python -m unittest discover -s tests -p test_real_mtl.py -v`. Every change has to come with matching tests; see [AGENTS.md](AGENTS.md#the-test-suite).
-- Build the .exe on Windows: `pip install pyinstaller pywebview`, then `pyinstaller build_exe.spec`. The result is `dist/IVAO_VMR_Generator.exe`. It shows the version `0.0.0` unless you set it first, for example `$env:APP_VERSION = "1.1.0-test"` in PowerShell. Running from source shows `dev`.
-- The GitHub Actions workflow `build-exe.yml` runs the tests, builds the exe and smoke tests it for every pull request and every push to `main`. For a `v*` tag it also attaches the exe to the release together with `LICENSE`, `NOTICE` and `THIRD-PARTY-LICENSES.txt`. The version comes from the tag (`v1.1.0` gives `1.1.0`).
+- Build the .exe on Windows: `pip install pyinstaller pywebview`, then `pyinstaller build_exe.spec`. The result is `dist/IVAO_VMR_Generator.exe`. It shows the version `0.0.0` unless you set it first, for example `$env:APP_VERSION = "1.1.0-test"` in PowerShell. Running from source shows `dev` and never checks for updates.
+- `IVAO_VMR_GUI_DATA_DIR=<folder>` makes the GUI keep all its files in that folder instead of AppData. The tests and the smoke tests of the workflow use it, so that they never touch your real settings and rules.
+- The GitHub Actions workflow `build-exe.yml` runs the tests, builds the exe and smoke tests it for every pull request and every push to `main`. For a `v*` tag it also has the exe signed and attaches it to the release together with `LICENSE`, `NOTICE` and `THIRD-PARTY-LICENSES.txt`. The version comes from the tag (`v1.1.0` gives `1.1.0`).
 - Notes for contributors and AI coding agents are in [AGENTS.md](AGENTS.md).
 
 ## License
@@ -140,4 +180,21 @@ This project is not affiliated with or endorsed by IVAO, VATSIM, the author of v
 ## Privacy
 The program runs entirely on your computer. It does not collect, store or send any personal data, usage statistics or crash reports. The only internet connection it makes is to download the pictures of the liveries it shows from the MTL catalog (`download.ivao.aero`); the request contains nothing but the catalog number of the livery. Each picture is downloaded once and kept in the `previews` folder next to the program. Your settings and your own rules are kept in `vmr_gui_settings.json` and `vmr_gui_my_rules.vmr` next to the program and never leave your computer. Clicking a livery link opens `mtl.ivao.aero` in your browser. Both are covered by [IVAO's privacy policy](https://ivao.aero/privacy). `create_vmr.py` makes no internet connection at all. The local server of the GUI only accepts connections from your own computer.
 
-Every release is built by [GitHub Actions](https://github.com/vojta48/create-ivao-vmr/actions/workflows/build-exe.yml) from the source code of this repository (`build-exe.yml` and `build_exe.spec`), never on a developer's computer. If you think a release contains something it should not, do not run it and open an [issue](https://github.com/vojta48/create-ivao-vmr/issues) with the file's SHA256 hash and where you downloaded it.
+The Windows executable `IVAO_VMR_Generator.exe` attached to a [release](https://github.com/vojta48/create-ivao-vmr/releases) is digitally signed, so that Windows can verify who published the file and that it was not changed after the build. To check the signature, open the file's *Properties → Digital Signatures* in Windows Explorer, or run `Get-AuthenticodeSignature IVAO_VMR_Generator.exe` in PowerShell. The signer is *SignPath Foundation*. An executable that is not signed (a workflow artifact of a pull request, or a build you made yourself) should only be used if you built it or trust where it came from.
+
+**How a release is built and signed.** Every release is built by [GitHub Actions](https://github.com/vojta48/create-ivao-vmr/actions/workflows/build-exe.yml) from the source code of this repository (`build-exe.yml` and `build_exe.spec`), never on a developer's computer. SignPath verifies that the executable comes from this repository's build, and the signing request is then approved by hand by an approver listed below. Every signing request requires this manual approval. The private key is kept in SignPath's hardware security module; nobody involved in the project has it.
+
+**Team roles.** Changes from anyone outside the team are reviewed before they are merged.
+
+| Role | Members |
+| --- | --- |
+| Committers and reviewers | [vojta48](https://github.com/vojta48), [DarrianCZE](https://github.com/DarrianCZE) |
+| Approvers | [vojta48](https://github.com/vojta48) |
+
+**Privacy policy.** The program runs entirely on your computer. It does not collect, store or send any personal data, usage statistics or crash reports. It makes only these internet connections:
+- It downloads the pictures of the liveries it shows from the MTL catalog (`download.ivao.aero`). The request contains nothing but the catalog number of the livery. Each picture is downloaded once and kept in the `previews` folder in `%LOCALAPPDATA%\IVAO VMR Generator`. Clicking a livery link opens `mtl.ivao.aero` in your browser. Both are covered by [IVAO's privacy policy](https://ivao.aero/privacy).
+- At start it asks GitHub (`api.github.com`) for the latest release of the program. The request contains nothing but the version of the program you have. When you click *Update*, it downloads the new program from the release on `github.com`, which GitHub serves from its download servers. Both are covered by [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement). To switch the check off, untick *Check for a new version at start*; GitHub is then only asked when you click *Check now*.
+
+Your settings and your own rules are kept in `%APPDATA%\IVAO VMR Generator` and never leave your computer. `create_vmr.py` makes no internet connection at all. The local server of the GUI only accepts connections from your own computer.
+
+**Reporting a problem.** If you think a signed release contains something it should not, do not run it and open an [issue](https://github.com/vojta48/create-ivao-vmr/issues) with the file's SHA256 hash and where you downloaded it.

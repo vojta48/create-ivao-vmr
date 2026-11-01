@@ -10,7 +10,8 @@ from unittest import mock
 from support import ServerTestCase, TempDirTestCase, vmr_gui
 from test_window import FakeWindow, fake_webview
 
-DEFAULTS = {"fileName": "custom.vmr", "lastFolder": "", "selectedPresets": [], "mtlRules": {"enabled": False, "mode": "standard"}}
+DEFAULTS = {"fileName": "custom.vmr", "lastFolder": "", "selectedPresets": [], "mtlRules": {"enabled": False, "mode": "standard"},
+            "communityFolder": "", "checkForUpdates": True}
 
 
 class SettingsFileTest(TempDirTestCase):
@@ -36,14 +37,14 @@ class SettingsFileTest(TempDirTestCase):
     def test_round_trip(self):
         settings = self.load()
         settings.update({"fileName": "my rules.vmr", "lastFolder": str(self.tmp), "selectedPresets": ["smartwings_group", "extra_rules"],
-                         "mtlRules": {"enabled": True, "mode": "all"}})
+                         "mtlRules": {"enabled": True, "mode": "all"}, "communityFolder": str(self.tmp), "checkForUpdates": False})
         data = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(data["settingsVersion"], vmr_gui.SETTINGS_VERSION)
         self.assertEqual(data["createdBy"], vmr_gui.APP_VERSION)
         self.assertEqual(data["savedBy"], vmr_gui.APP_VERSION)
         again = self.load()
         self.assertEqual(again.values, {"fileName": "my rules.vmr", "lastFolder": str(self.tmp), "selectedPresets": ["smartwings_group", "extra_rules"],
-                                        "mtlRules": {"enabled": True, "mode": "all"}})
+                                        "mtlRules": {"enabled": True, "mode": "all"}, "communityFolder": str(self.tmp), "checkForUpdates": False})
         self.assertIsNone(again.notice)
         self.assertFalse(self.path.with_name(self.path.name + ".part").exists())
 
@@ -60,6 +61,15 @@ class SettingsFileTest(TempDirTestCase):
         self.assertEqual(settings.values, dict(DEFAULTS, fileName="old.vmr"))
         self.assertIsNone(settings.notice)
         self.assertTrue(self.path.exists())
+
+    def test_file_of_version_1_1(self):
+        # 1.2 added communityFolder and checkForUpdates without changing settingsVersion: a 1.1 file keeps all its settings
+        self.write({"settingsVersion": 1, "createdBy": "1.1.0", "savedBy": "1.1.0", "fileName": "mine.vmr", "lastFolder": "C:\\vPilot Files",
+                    "selectedPresets": ["extra_rules"], "mtlRules": {"enabled": True, "mode": "all"}})
+        settings = self.load()
+        self.assertIsNone(settings.notice)
+        self.assertEqual(settings.values, dict(DEFAULTS, fileName="mine.vmr", lastFolder="C:\\vPilot Files", selectedPresets=["extra_rules"],
+                                               mtlRules={"enabled": True, "mode": "all"}))
 
     def test_settings_of_a_newer_version_are_kept(self):
         newer = {"settingsVersion": vmr_gui.SETTINGS_VERSION + 1, "createdBy": "9.0.0", "fileName": "n.vmr",
@@ -78,7 +88,7 @@ class SettingsFileTest(TempDirTestCase):
 
     def test_invalid_values_fall_back_one_by_one(self):
         self.write({"settingsVersion": 1, "fileName": 42, "lastFolder": ["x"], "selectedPresets": "smartwings_group",
-                    "mtlRules": {"enabled": "yes", "mode": "standard"}})
+                    "mtlRules": {"enabled": "yes", "mode": "standard"}, "communityFolder": 3, "checkForUpdates": "no"})
         self.assertEqual(self.load().values, DEFAULTS)
         self.write({"settingsVersion": 1, "fileName": "  ..\\..\\evil\\a.vmr ", "selectedPresets": ["a", "b", "a"],
                     "mtlRules": {"enabled": True, "mode": "everything"}})
@@ -160,8 +170,9 @@ class OutputFolderTest(TempDirTestCase):
         self.assertEqual(app.output_dir, self.tmp)
 
     def test_missing_last_folder_falls_back(self):
-        app = vmr_gui.App(self.tmp, None, self.settings(lastFolder=str(self.tmp / "gone")))
-        self.assertEqual(app.output_dir, Path(vmr_gui.DEFAULT_DIR))
+        with mock.patch.object(vmr_gui, "default_output_dir", return_value=self.tmp / "vPilot Files"):
+            app = vmr_gui.App(self.tmp, None, self.settings(lastFolder=str(self.tmp / "gone")))
+        self.assertEqual(app.output_dir, self.tmp / "vPilot Files")
 
     def test_command_line_folder_wins_and_stays(self):
         fixed = self.tmp / "fixed"
@@ -204,6 +215,13 @@ class SettingsServerTest(ServerTestCase):
         data = json.loads(self.settings_path.read_text(encoding="utf-8"))
         self.assertEqual((data["fileName"], data["selectedPresets"], data["mtlRules"]["mode"]), ("mine.vmr", ["extra_rules"], "all"))
         self.assertEqual(json.loads(self.request("GET", "/api/state")[2])["settings"]["fileName"], "mine.vmr")
+
+    def test_2b_the_page_cannot_set_the_community_folder(self):
+        status, _, body = self.post_json("/api/settings", {"settings": {"communityFolder": str(self.tmp), "checkForUpdates": False}})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["settings"]["communityFolder"], "")
+        self.assertFalse(json.loads(body)["settings"]["checkForUpdates"])
+        self.assertEqual(self.post_json("/api/settings", {"settings": "x"})[0], 200)  # not a dict: nothing changes
 
     def test_3_saving_a_vmr_remembers_the_folder(self):
         self.app.output_dir = self.out

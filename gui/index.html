@@ -11,6 +11,7 @@
   <h1>IVAO VMR generator <span id="version" class="version"></span></h1>
   <div id="status" class="status">Loading…</div>
 </header>
+<dialog id="updateDialog" class="update"></dialog>
 <div id="notice" class="notice" role="alert" hidden></div>
 
 <main>
@@ -20,6 +21,7 @@
       The rules generated from your MTL installation, the same ones <code>create_vmr.py</code> makes. They are put
       <b>after</b> the presets and your own rules, so one VMR file is enough in vPilot.
     </p>
+    <div id="mtlFolder" class="hint path"></div>
     <div id="mtl">
       <label class="check"><input type="checkbox" id="mtlEnabled"> <span id="mtlLabel">Add the rules generated from my MTL</span></label>
       <div class="indent">
@@ -35,6 +37,11 @@
     <h2>Import a VMR</h2>
     <p class="hint">Load the rules of an existing VMR file into "My rules" so you can edit them.</p>
     <input type="file" id="importFile" accept=".vmr,.xml,text/xml">
+
+    <h2>Program</h2>
+    <label class="check"><input type="checkbox" id="checkUpdates"> <span>Check for a new version at start (asks GitHub)</span></label>
+    <div class="row"><button id="checkNow" class="small secondary">Check now</button> <span id="updateInfo" class="hint"></span></div>
+    <p id="dataDir" class="hint path"></p>
   </section>
 
   <section class="column rules">

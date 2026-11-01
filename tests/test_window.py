@@ -11,7 +11,7 @@ from support import TempDirTestCase, vmr_gui
 
 def fake_webview():
     module = types.ModuleType("webview")
-    module.FileDialog = types.SimpleNamespace(SAVE="save", OPEN="open")
+    module.FileDialog = types.SimpleNamespace(SAVE="save", OPEN="open", FOLDER="folder")
     return module
 
 

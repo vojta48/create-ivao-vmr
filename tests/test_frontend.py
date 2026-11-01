@@ -103,6 +103,31 @@ class JavaScriptTest(unittest.TestCase):
             {"callsign": "", "type": "C172"}, {"callsign": "DLH", "exactCallsign": "DLH1", "flightNumbers": "1-9", "type": "A320"}]),
             ["* C172", "DLH =DLH1 #1-9 A320"])
 
+    def test_update_info_text(self):
+        # the line under "Check now" for every answer of /api/update
+        statuses = [
+            {"checked": False, "enabled": True, "current": "1.2.0"},
+            {"checked": False, "enabled": False, "current": "1.2.0"},
+            {"checked": True, "current": "dev", "latest": None, "development": True},
+            {"checked": True, "current": "1.2.0", "latest": "1.2.0", "available": False},
+            {"checked": True, "current": "1.2.0", "latest": "1.3.0", "available": True},
+            {"checked": True, "current": "1.4.0", "latest": "1.3.0", "available": False, "development": True},
+            {"checked": True, "current": "1.2.0", "error": "Could not check for a new version: offline"},
+        ]
+        self.assertEqual(run_js(["updateInfoText"], "data.map(updateInfoText)", statuses), [
+            "", "The check at start is off.", "Version dev is a development version, so it is not checked for updates.",
+            "You have the newest version (1.2.0).", "Version 1.3.0 is available.",
+            "Version 1.4.0 is a development version, newer than the latest release (1.3.0).",
+            "Could not check for a new version: offline"])
+
+    def test_update_prompt_has_update_and_ignore(self):
+        prompt = js_function("showUpdatePrompt")
+        self.assertIn('"Update"', prompt)
+        self.assertIn('"Ignore"', prompt)
+        install = re.search(r"^  async function installUpdate\(.*?^  }$", APP_JS, re.S | re.M).group(0)
+        self.assertNotIn("confirm(", install)  # "Update" installs right away, no second question
+        self.assertIn('<dialog id="updateDialog"', INDEX)
+
     def test_python_parse_and_js_build_round_trip(self):
         rules = vmr_gui.parse_vmr(vmr_gui.build_vmr(self.RULES[:2]))
         js = run_js(["buildVmr"], "buildVmr(data, '')", rules)

@@ -49,12 +49,14 @@ jobs:
 
       # In self-test mode the server stops by itself after IVAO_VMR_GUI_SELFTEST_SECONDS. The exe is never
       # killed: a one-file exe runs as a launcher plus the real program, and killing the launcher would leave
-      # the program running.
+      # the program running. Self-test mode never checks GitHub for updates. IVAO_VMR_GUI_DATA_DIR keeps the
+      # settings and the log out of the runner's AppData, in a folder the step can read afterwards.
       - name: Smoke test the exe (server)
         shell: pwsh
         env:
           IVAO_VMR_GUI_SELFTEST: "1"
           IVAO_VMR_GUI_SELFTEST_SECONDS: "20"
+          IVAO_VMR_GUI_DATA_DIR: ${{ runner.temp }}\vmr-gui-server
           EXPECTED_VERSION: ${{ steps.version.outputs.version }}
         run: |
           $p = Start-Process -FilePath dist\IVAO_VMR_Generator.exe -ArgumentList "--no-browser","--port","8765" -PassThru
@@ -62,6 +64,7 @@ jobs:
           $state = Invoke-RestMethod http://127.0.0.1:8765/api/state
           if ($state.presets.Count -lt 1) { throw "no presets bundled" }
           if ($state.version -ne $env:EXPECTED_VERSION) { throw "version $($state.version) instead of $env:EXPECTED_VERSION" }
+          if ($state.dataDir -ne $env:IVAO_VMR_GUI_DATA_DIR) { throw "data folder $($state.dataDir) instead of $env:IVAO_VMR_GUI_DATA_DIR" }
           $html = Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing
           if ($html.StatusCode -ne 200) { throw "GUI page not served" }
           $info = (Get-Item dist\IVAO_VMR_Generator.exe).VersionInfo
@@ -77,12 +80,14 @@ jobs:
         shell: pwsh
         env:
           IVAO_VMR_GUI_SELFTEST: "1"
+          IVAO_VMR_GUI_DATA_DIR: ${{ runner.temp }}\vmr-gui-window
         run: |
-          Remove-Item dist\vmr_gui.log -ErrorAction SilentlyContinue
+          $log = Join-Path $env:IVAO_VMR_GUI_DATA_DIR "vmr_gui.log"
+          Remove-Item $log -ErrorAction SilentlyContinue
           $p = Start-Process -FilePath dist\IVAO_VMR_Generator.exe -ArgumentList "--port","8766" -PassThru
           $p.WaitForExit(60000) | Out-Null
           Write-Host "--- vmr_gui.log ---"
-          if (Test-Path dist\vmr_gui.log) { Get-Content dist\vmr_gui.log }
+          if (Test-Path $log) { Get-Content $log }
           Write-Host "-------------------"
           if (-not $p.HasExited) {
             Get-Process IVAO_VMR_Generator -ErrorAction SilentlyContinue | Stop-Process -Force

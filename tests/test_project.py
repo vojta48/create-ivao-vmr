@@ -112,12 +112,35 @@ class BuildFilesTest(unittest.TestCase):
         self.assertNotIn("Stop-Process", server)
         self.assertIn("$state.version -ne $env:EXPECTED_VERSION", server)
 
+    def test_smoke_tests_keep_out_of_the_runners_appdata(self):
+        # both smoke tests use their own data folder, and the log of the window test is read from there
+        workflow = (ROOT / ".github" / "workflows" / "build-exe.yml").read_text(encoding="utf-8")
+        start = workflow.index("Smoke test the exe (server)")
+        server, window = workflow[start:workflow.index("Smoke test the exe (window)")], workflow[workflow.index("Smoke test the exe (window)"):]
+        window = window[:window.index("- name:", 10)]
+        for step in (server, window):
+            self.assertIn("IVAO_VMR_GUI_DATA_DIR: ${{ runner.temp }}", step)
+        self.assertIn("$state.dataDir -ne $env:IVAO_VMR_GUI_DATA_DIR", server)
+        self.assertIn('$log = Join-Path $env:IVAO_VMR_GUI_DATA_DIR "vmr_gui.log"', window)
+        self.assertNotIn("dist\\vmr_gui.log", window)
+
     def test_gitignore(self):
         ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").split()
         for name in ("build/", "dist/", "previews/", "/licenses/", "__pycache__/", "create_vmr.log", "vmr_gui.log", "vmr_gui_settings.json", "vmr_gui_my_rules.vmr"):
             self.assertIn(name, ignored)
         # only the folder CI generates at the top: tools/licenses/ holds license texts that must be committed
         self.assertNotIn("licenses/", ignored)
+
+    def test_privacy_policy_names_every_host(self):
+        # invariant 7: the README privacy policy is part of the code signing requirements and has to stay true
+        source = (ROOT / "vmr_gui.py").read_text(encoding="utf-8")
+        hosts = set(re.findall(r'"https://([^/"%]+)', source))
+        self.assertLessEqual({"download.ivao.aero", "api.github.com", "github.com"}, hosts)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        policy = readme[readme.index("**Privacy policy.**"):readme.index("**Reporting a problem.**")]
+        for host in hosts:
+            self.assertIn("`%s`" % host, policy, host)
+        self.assertIn("Check for a new version at start", policy)  # how to switch the update check off
 
     def test_create_vmr_stays_standalone(self):
         # Users drop create_vmr.py alone into their MTL folder: standard library imports only (AGENTS.md, invariant 2)

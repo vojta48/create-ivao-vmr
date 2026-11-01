@@ -88,7 +88,8 @@ class RemoveMissingTest(TempDirTestCase):
         self.assertEqual(self.path.read_bytes(), before)
 
     def test_nothing_is_removed_without_the_mtl(self):
-        for library in (FakeLibrary(self.tmp / "no such folder", ["C172"]), FakeLibrary(self.tmp, [])):
+        # no such folder, an empty MTL, and no MTL found in any simulator at all
+        for library in (FakeLibrary(self.tmp / "no such folder", ["C172"]), FakeLibrary(self.tmp, []), vmr_gui.Library(None).scan()):
             rules = vmr_gui.MyRules(self.path).load()
             rules.remove_missing(library)
             self.assertEqual(len(rules.rules), 3)
@@ -152,6 +153,48 @@ class MyRulesServerTest(ServerTestCase):
             self.assertIsNone(self.state()["myRulesNotice"])  # only once
         finally:
             vmr_gui.Handler.app = self.app
+
+
+class SeveralSimulatorsTest(TempDirTestCase):
+    """MSFS 2020 and 2024 can have different MTLs: a livery that only one of them has is not missing."""
+
+    def setUp(self):
+        super().setUp()
+        self.rules = vmr_gui.MyRules(self.tmp / "vmr_gui_my_rules.vmr")
+        self.rules.save([RULE_DLH, RULE_OK])
+        patcher = mock.patch("builtins.print")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_livery_in_the_other_mtl_is_kept(self):
+        self.rules.remove_missing(FakeLibrary(self.tmp, ["A320AAF", "C172"]), [FakeLibrary(self.tmp, ["A320GONE"])])
+        self.assertEqual(self.rules.rules, [RULE_DLH, RULE_OK])
+        self.assertIsNone(self.rules.notice)
+
+    def test_missing_everywhere_is_removed(self):
+        self.rules.remove_missing(FakeLibrary(self.tmp, ["A320AAF", "C172"]), [FakeLibrary(self.tmp, ["B738X"])])
+        self.assertEqual(self.rules.rules, [dict(RULE_DLH, models=["A320AAF"]), RULE_OK])
+
+    def test_nothing_is_removed_when_the_other_mtl_has_problems(self):
+        for other in (FakeLibrary(self.tmp, ["X"], errors=["damaged"]), FakeLibrary(self.tmp, []), FakeLibrary(self.tmp / "gone", ["X"])):
+            rules = vmr_gui.MyRules(self.tmp / "vmr_gui_my_rules.vmr").load()
+            rules.remove_missing(FakeLibrary(self.tmp, ["A320AAF", "C172"]), [other])
+            self.assertEqual(rules.rules, [RULE_DLH, RULE_OK])
+
+    def test_app_reads_the_other_simulators(self):
+        # the 2020 MTL is in use and lacks F100KLM, which only the 2024 MTL has
+        mtl2020 = make_mtl(self.tmp / "2020" / "IVAO_MTL")
+        write_model(mtl2020 / "SimObjects" / "Airplanes", "IVAO_F100", [livery("F100DLA", "DAL", "F100", "Air Dolomiti (DLA)", 101)])
+        mtl2024 = make_mtl(self.tmp / "2024" / "IVAO_MTL")
+        rule = {"callsign": "KLM", "type": "F100", "models": ["F100KLM"]}
+        self.rules.save([rule])
+        found = [{"sim": "MSFS 2024 (Steam)", "community": str(mtl2024.parent), "mtl": str(mtl2024)},
+                 {"sim": "MSFS 2020 (Steam)", "community": str(mtl2020.parent), "mtl": str(mtl2020)}]
+        app = vmr_gui.App(mtl2020, self.tmp, None, vmr_gui.MyRules(self.rules.path).load(), found)
+        self.assertEqual(app.checked_my_rules(), [rule])
+        # with only the 2020 MTL on the computer, the livery really is gone
+        app = vmr_gui.App(mtl2020, self.tmp, None, vmr_gui.MyRules(self.rules.path).load(), found[1:])
+        self.assertEqual(app.checked_my_rules(), [])
 
 
 class MtlChangeEndToEndTest(TempDirTestCase):
