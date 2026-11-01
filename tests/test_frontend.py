@@ -152,6 +152,26 @@ class JavaScriptTest(unittest.TestCase):
         result = run_js(["ruleKey", "withoutShadowedRules"], "withoutShadowedRules(data)", rules)
         self.assertEqual(result, [rules[0], rules[1], rules[2], rules[5]])
 
+    def test_group_presets_makes_the_two_groups_of_the_tree(self):
+        presets = [
+            {"id": "airBaltic_ACMI", "category": "other"},
+            {"id": "lufthansa_group", "category": "airlines"},
+            {"id": "sas_group", "category": "airlines"},
+            {"id": "old_preset"},  # no category: a preset from an older server answer counts as "other"
+        ]
+        groups = run_js(["groupPresets"], "groupPresets(data).map((g) => [g.category, g.title, g.presets.map((p) => p.id)])", presets)
+        self.assertEqual(groups, [["airlines", "Airline groups", ["lufthansa_group", "sas_group"]],
+                                  ["other", "Other presets", ["airBaltic_ACMI", "old_preset"]]])
+        # a group without presets is left out
+        only = run_js(["groupPresets"], "groupPresets(data).map((g) => g.category)", presets[1:3])
+        self.assertEqual(only, ["airlines"])
+
+    def test_group_selection(self):
+        group = {"presets": [{"id": "a"}, {"id": "b"}]}
+        for selected, expected in (([], "none"), (["a"], "some"), (["a", "b"], "all"), (["a", "b", "zzz"], "all")):
+            result = run_js(["groupSelection"], "groupSelection(data.group, new Set(data.selected))", {"group": group, "selected": selected})
+            self.assertEqual(result, expected, selected)
+
     def test_rule_conditions(self):
         self.assertEqual(run_js(["ruleConditions"], "data.map(ruleConditions)", [
             {"callsign": "", "type": "C172"}, {"callsign": "DLH", "exactCallsign": "DLH1", "flightNumbers": "1-9", "type": "A320"}]),

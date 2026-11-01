@@ -39,10 +39,11 @@ While the program reads your MTL at start (a few seconds with thousands of liver
 
 The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win, and a later rule with the same callsign and type (a preset rule that the MTL rules repeat, for example) is left out of the file:
 
-1. **Presets**: ready-made rule sets for cases the MTL does not cover. Tick the ones you want. Included are:
-   - airline groups whose members fly each other's aircraft or share a livery, so a callsign without a livery of its own gets the group's one: `smartwings_group` (Smartwings, Smartwings Poland/Hungary/Slovakia, Czech Airlines), `lufthansa_group`, `air_france_klm_group`, `iag_group`, `sas_group`, `norwegian_group`, `ryanair_group`, `wizz_air_group`, `easyjet_group` and `tui_group`;
-   - `airBaltic_ACMI`: airBaltic A220s wet-leased to Brussels Airlines, Austrian, Lufthansa, Air Serbia and SAS;
-   - `extra_rules`: liveries missing from the MTL, substituted with a similar one.
+1. **Presets**: ready-made rule sets for cases the MTL does not cover. Tick the ones you want. They are shown as a tree of two groups; ticking a group ticks all its presets, and each preset keeps its own checkbox:
+   - **Airline groups** (files named `*_group.vmr`): the airlines of a group fly each other's aircraft or share a livery, so a callsign without a livery of its own gets the group's one: `smartwings_group` (Smartwings, Smartwings Poland/Hungary/Slovakia, Czech Airlines), `lufthansa_group`, `air_france_klm_group`, `iag_group`, `latam_group`, `sas_group`, `norwegian_group`, `ryanair_group`, `wizz_air_group`, `easyjet_group` and `tui_group`;
+   - **Other presets**: `airBaltic_ACMI` (airBaltic A220s wet-leased to Brussels Airlines, Austrian, Lufthansa, Air Serbia and SAS) and `extra_rules` (liveries missing from the MTL, substituted with a similar one).
+
+   Click a livery id in a preset's rules to see its picture next to the presets.
 
    Every `.vmr` file in the `presets` folder is offered as a preset, and a `<!-- comment -->` in the file is shown as its description. Put your own presets into `%APPDATA%\IVAO VMR Generator\presets` (create the folder). A preset there replaces a built-in one with the same name. A `presets` folder next to the .exe, where version 1.1 read them, still works.
 2. **My rules**: one line per rule.

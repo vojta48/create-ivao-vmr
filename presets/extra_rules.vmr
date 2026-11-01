@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
 <!-- Liveries missing from the IVAO MTL, substituted with a similar one. Place before the IVAO MTL rules. -->
-<ModelMatchRule CallsignPrefix="SWR" TypeCode="BCS3" ModelName="BCS3SWR" />
 <ModelMatchRule CallsignPrefix="EDW" TypeCode="BCS3" ModelName="BCS3SWR" />
 <ModelMatchRule CallsignPrefix="SWR" TypeCode="E190" ModelName="E190OAW" />
 <ModelMatchRule CallsignPrefix="NGB" TypeCode="MD11" ModelName="MD11WGN2" />

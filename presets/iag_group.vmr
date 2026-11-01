@@ -16,5 +16,5 @@
 <ModelMatchRule CallsignPrefix="IBE" TypeCode="AT76" ModelName="AT76ANE" />
 <ModelMatchRule CallsignPrefix="EUK" TypeCode="A21N" ModelName="A21NEIN" />
 <ModelMatchRule CallsignPrefix="EUK" TypeCode="A332" ModelName="A332EIN" />
-<ModelMatchRule CallsignPrefix="EUK" TypeCode="A333" ModelName="A333EIN" />
+<ModelMatchRule CallsignPrefix="EUK" TypeCode="A333" ModelName="A333EIN2" />
 </ModelMatchRuleSet>

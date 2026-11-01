@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- LATAM group: one livery for the whole group. Aircraft of LATAM Chile (LAN), Brasil (TAM), Peru (LPE), Paraguay (LAP), Colombia (ARE), LATAM Express (LXP) and the cargo airlines (TUS, LAE) without a livery of their own in the MTL, shown in the colours of another LATAM airline. -->
+<ModelMatchRule CallsignPrefix="LAN" TypeCode="A21N" ModelName="A21NTAM" />
+<ModelMatchRule CallsignPrefix="LPE" TypeCode="A321" ModelName="A321LANWL" />
+<ModelMatchRule CallsignPrefix="LPE" TypeCode="A21N" ModelName="A21NTAM" />
+<ModelMatchRule CallsignPrefix="LPE" TypeCode="B788" ModelName="B788LAN" />
+<ModelMatchRule CallsignPrefix="LPE" TypeCode="B789" ModelName="B789LAN" />
+<ModelMatchRule CallsignPrefix="LAP" TypeCode="A20N" ModelName="A20NTAM" />
+<ModelMatchRule CallsignPrefix="ARE" TypeCode="A20N" ModelName="A20NTAM" />
+<ModelMatchRule CallsignPrefix="ARE" TypeCode="A321" ModelName="A321LANWL" />
+<ModelMatchRule CallsignPrefix="LXP" TypeCode="A319" ModelName="A319LAN" />
+<ModelMatchRule CallsignPrefix="LXP" TypeCode="A320" ModelName="A320LAN//A320LANWL2" />
+<ModelMatchRule CallsignPrefix="LXP" TypeCode="A321" ModelName="A321LANWL" />
+<ModelMatchRule CallsignPrefix="TUS" TypeCode="B763" ModelName="B763LCOWL" />
+<ModelMatchRule CallsignPrefix="LAE" TypeCode="B763" ModelName="B763LCOWL" />
+</ModelMatchRuleSet>
