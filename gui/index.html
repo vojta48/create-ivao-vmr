@@ -11,6 +11,17 @@
   <h1>IVAO VMR generator <span id="version" class="version"></span></h1>
   <div id="status" class="status">Loading…</div>
 </header>
+<!-- Shown while the page waits for /api/state, which reads the whole MTL the first time (a few seconds with
+     thousands of liveries). /api/progress tells how far the scan is. -->
+<div id="loading" class="loading" role="status" aria-live="polite">
+  <div class="loading-box">
+    <div class="loading-app">IVAO VMR generator</div>
+    <div class="spinner" aria-hidden="true"></div>
+    <h2 id="loadingTitle">Starting…</h2>
+    <p id="loadingText" class="hint">Looking for your IVAO MTL.</p>
+    <div class="progress" aria-hidden="true"><div id="loadingBar" class="progress-bar"></div></div>
+  </div>
+</div>
 <dialog id="updateDialog" class="update"></dialog>
 <div id="notice" class="notice" role="alert" hidden></div>
 

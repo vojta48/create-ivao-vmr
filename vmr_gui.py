@@ -264,6 +264,8 @@ class Library:
         self.errors = []
         self.catalog_ids = {}
         self.scanned = False
+        # how far the scan is (aircraft folders done and in all), shown by the page's loading screen (/api/progress)
+        self.progress = {"done": 0, "total": 0}
 
     def found(self):
         return self.airplanes is not None and self.airplanes.is_dir()
@@ -273,10 +275,13 @@ class Library:
         self.errors = []
         self.catalog_ids = read_mtl_dat(self.models_root / MTL_DAT_FILE) if self.models_root else {}
         if self.found():
-            for model_dir in sorted(self.airplanes.iterdir(), key=lambda p: p.name):  # the order create_vmr.py uses
+            model_dirs = sorted(self.airplanes.iterdir(), key=lambda p: p.name)  # the order create_vmr.py uses
+            self.progress = {"done": 0, "total": len(model_dirs)}
+            for model_dir in model_dirs:
                 cfg = model_dir / "aircraft.cfg"
                 if cfg.is_file():
                     self._read_cfg(model_dir, cfg)
+                self.progress["done"] += 1
         self.scanned = True
         return self
 
@@ -1304,6 +1309,12 @@ class Handler(BaseHTTPRequestHandler):
                 "myRulesNotice": app.my_rules.take_notice(),
                 "filesNotice": app.take_files_notice(),
             })
+        elif path == "/api/progress":
+            # How far reading the MTL is, for the loading screen. It never waits for the scan (unlike /api/state),
+            # and reads nothing but the counters.
+            library = app.library
+            self.send_json({"scanned": library.scanned, "done": library.progress["done"], "total": library.progress["total"],
+                            "liveries": len(library.liveries), "modelsRoot": str(library.models_root) if library.models_root else None})
         elif path == "/api/rescan":
             app.library.scan()
             self.send_json({

@@ -35,7 +35,7 @@ Normally you don't have to do anything. For the cases where you do:
 - On the command line, `-c <Community folder>` sets the Community folder and `-d <IVAO_MTL folder>` sets the MTL folder, each for one run.
 
 ### Build your VMR
-The program is a wizard of three steps: **1 Basic rules** (the rules generated from your MTL), **2 Presets** and **3 My rules** (your own rules, the liveries of your MTL, and saving). *Continue* and *Back* move between the steps, and the three buttons at the top jump to any step directly. Every choice is kept while you move back and forth, and the button of each step shows what is chosen in it.
+While the program reads your MTL at start (a few seconds with thousands of liveries), a loading screen shows how far it is. The program is a wizard of three steps: **1 Basic rules** (the rules generated from your MTL), **2 Presets** and **3 My rules** (your own rules, the liveries of your MTL, and saving). *Continue* and *Back* move between the steps, and the three buttons at the top jump to any step directly. Every choice is kept while you move back and forth, and the button of each step shows what is chosen in it.
 
 The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win, and a later rule with the same callsign and type (a preset rule that the MTL rules repeat, for example) is left out of the file:
 

@@ -189,3 +189,32 @@ pre { background: #f7f8fa; border: 1px solid var(--border); border-radius: 6px; 
 .card .meta { font-size: 11px; color: var(--muted); }
 .card .name { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .name.special { color: var(--warn); }
+
+/* loading screen (shown until /api/state has answered) */
+.loading {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+}
+.loading[hidden] { display: none; }
+.loading-box {
+  width: min(460px, 90vw);
+  padding: 28px 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+.loading-app { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+.loading-box h2 { margin: 14px 0 4px; font-size: 16px; }
+.loading-box .hint { margin: 0 0 14px; }
+.spinner {
+  width: 36px; height: 36px; margin: 0 auto;
+  border: 4px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress { height: 6px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }

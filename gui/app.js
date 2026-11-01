@@ -688,8 +688,40 @@
     showOutputFolder();
   });
 
+  // ---------------------------------------------------------------- loading screen
+  // /api/state reads the whole MTL the first time, which takes a few seconds with thousands of liveries. Until it
+  // answers, the loading screen covers the page and asks /api/progress every few hundred milliseconds for how far the
+  // scan is. (The "Starting…" words are in index.html, so they show before this script runs.)
+  function loadingText(progress) {
+    if (!progress.modelsRoot) return { title: "Starting…", text: "Looking for your IVAO MTL.", percent: 0 };
+    if (progress.scanned) return { title: "Almost ready", text: progress.liveries + " liveries found. Preparing the page…", percent: 100 };
+    const percent = progress.total ? Math.round(100 * progress.done / progress.total) : 0;
+    return { title: "Reading your IVAO MTL…", text: progress.total
+      ? progress.done + " of " + progress.total + " aircraft folders, " + progress.liveries + " liveries so far"
+      : "Reading " + progress.modelsRoot, percent: percent };
+  }
+
+  function showLoading(progress) {
+    const info = loadingText(progress);
+    $("loadingTitle").textContent = info.title;
+    $("loadingText").textContent = info.text;
+    $("loadingBar").style.width = info.percent + "%";
+  }
+
+  function watchLoading() {
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      try { showLoading(await api("/api/progress")); } catch (e) { /* the server is busy; try again */ }
+      if (!stopped) setTimeout(tick, 300);
+    };
+    tick();
+    return () => { stopped = true; $("loading").hidden = true; };
+  }
+
   // ---------------------------------------------------------------- init
   async function init() {
+    const hideLoading = watchLoading();
     try {
       const data = await api("/api/state");
       state.presets = data.presets;
@@ -727,6 +759,7 @@
     renderRules();
     renderLibrary();
     showStep(1);
+    hideLoading();
   }
 
   $("mtlEnabled").addEventListener("change", () => { state.mtl.enabled = $("mtlEnabled").checked; renderMtl(); updateOutput(); });

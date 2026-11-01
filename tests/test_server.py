@@ -45,6 +45,19 @@ class StateTest(ServerTestCase):
         self.assertEqual(state["outputDir"], str(self.out))
         self.assertEqual({l["id"] for l in state["liveries"] if not l["inVmr"]}, LEFT_OUT)
 
+    def test_progress(self):
+        # what the loading screen asks for while /api/state reads the MTL
+        self.request("GET", "/api/state")
+        status, _, body = self.request("GET", "/api/progress")
+        self.assertEqual(status, 200)
+        progress = json.loads(body)
+        self.assertEqual(set(progress), {"scanned", "done", "total", "liveries", "modelsRoot"})
+        self.assertTrue(progress["scanned"])
+        self.assertEqual(progress["done"], progress["total"])
+        self.assertGreater(progress["total"], 0)
+        self.assertEqual(progress["liveries"], len(self.app.library.liveries))
+        self.assertEqual(progress["modelsRoot"], str(self.app.library.models_root))
+
     def test_rescan(self):
         status, _, body = self.request("GET", "/api/rescan")
         self.assertEqual(status, 200)

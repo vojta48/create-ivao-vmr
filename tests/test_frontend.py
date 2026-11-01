@@ -71,6 +71,16 @@ class PageTest(unittest.TestCase):
         for element in ("rulesBody", "addRule", "importFile", "fileName", "save", "download", "search", "library"):
             self.assertIn('id="%s"' % element, sections[2], element)
 
+    def test_loading_screen(self):
+        # shown from the first byte of the page (its words are in the HTML) until /api/state has answered
+        self.assertRegex(INDEX, r'<div id="loading" class="loading"[^>]*>')
+        self.assertNotRegex(INDEX, r'<div id="loading"[^>]*hidden')
+        for element in ("loadingTitle", "loadingText", "loadingBar"):
+            self.assertIn('id="%s"' % element, INDEX, element)
+        init = re.search(r"^  async function init\(.*?^  }$", APP_JS, re.S | re.M).group(0)
+        self.assertRegex(init, r"const hideLoading = watchLoading\(\);\s+try \{\s+const data = await api\(\"/api/state\"\)")
+        self.assertTrue(init.rstrip().endswith("hideLoading();\n  }"))  # also after an error, so that the error can be read
+
     def test_switching_steps_keeps_every_choice(self):
         # Back and Continue only show and hide the sections. The state of the page (ticked presets, the MTL choice,
         # my rules, the search) must not be touched, and no step is rendered again from scratch.
@@ -185,6 +195,21 @@ class JavaScriptTest(unittest.TestCase):
             ["MTL rules not added", "smartwings group", "1 rule"],
             ["standard liveries (1200 rules)", "2 ticked: a, b", "2 rules"],
             ["all liveries (1500 rules)", "none ticked", "no rules yet"],
+        ])
+
+    def test_loading_text(self):
+        # the loading screen for every answer of /api/progress
+        texts = run_js(["loadingText"], "data.map(loadingText)", [
+            {"scanned": False, "done": 0, "total": 0, "liveries": 0, "modelsRoot": None},
+            {"scanned": False, "done": 0, "total": 0, "liveries": 0, "modelsRoot": "D:\\MTL"},
+            {"scanned": False, "done": 50, "total": 200, "liveries": 1234, "modelsRoot": "D:\\MTL"},
+            {"scanned": True, "done": 200, "total": 200, "liveries": 9400, "modelsRoot": "D:\\MTL"},
+        ])
+        self.assertEqual(texts, [
+            {"title": "Starting…", "text": "Looking for your IVAO MTL.", "percent": 0},
+            {"title": "Reading your IVAO MTL…", "text": "Reading D:\\MTL", "percent": 0},
+            {"title": "Reading your IVAO MTL…", "text": "50 of 200 aircraft folders, 1234 liveries so far", "percent": 25},
+            {"title": "Almost ready", "text": "9400 liveries found. Preparing the page…", "percent": 100},
         ])
 
     def test_python_parse_and_js_build_round_trip(self):
