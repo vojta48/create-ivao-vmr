@@ -54,6 +54,16 @@ class LibraryTest(TempDirTestCase):
         self.assertEqual(tree_hash(self.mtl), before)
         self.assertIn("VERSION]", (self.mtl / "SimObjects/Airplanes/IVAO_F100/aircraft.cfg").read_text())
 
+    def test_progress_counts_the_aircraft_folders(self):
+        # the loading screen of the page shows how far the scan is (/api/progress)
+        folders = [d for d in (self.mtl / "SimObjects" / "Airplanes").iterdir()]
+        self.assertEqual(self.library.progress, {"done": len(folders), "total": len(folders)})
+        self.assertTrue(self.library.scanned)
+        fresh = vmr_gui.Library(self.mtl)
+        self.assertEqual(fresh.progress, {"done": 0, "total": 0})
+        self.assertFalse(fresh.scanned)
+        self.assertEqual(vmr_gui.Library(None).scan().progress, {"done": 0, "total": 0})
+
     def test_rescan_starts_over(self):
         write_model(self.mtl / "SimObjects" / "Airplanes", "IVAO_NEW", [livery("A320NEW", "NEW", "A320", "New (NEW)")])
         self.library.scan()

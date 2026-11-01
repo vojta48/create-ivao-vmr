@@ -36,16 +36,68 @@ dialog.update details pre { white-space: pre-wrap; max-height: 240px; overflow: 
 .path { word-break: break-all; }
 .status { color: var(--muted); }
 .status.error { color: var(--warn); }
-main {
+/* wizard steps */
+.steps {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+.step-button {
+  flex: 1;
   display: grid;
-  grid-template-columns: 280px minmax(420px, 1fr) minmax(320px, 420px);
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.step-button:hover { border-color: var(--accent); }
+.step-button .num {
+  grid-row: 1 / span 2;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.step-button .label { font-weight: 600; }
+.step-button .summary { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step-button.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.step-button.current .num { background: var(--accent); color: #fff; }
+.step-button.done .num { background: var(--ok); color: #fff; }
+main { padding: 16px 20px 0; }
+.step[hidden] { display: none; }
+.columns {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 440px);
   gap: 16px;
-  padding: 16px 20px;
   align-items: start;
 }
 @media (max-width: 1100px) {
-  main { grid-template-columns: 1fr; }
+  .columns { grid-template-columns: 1fr; }
 }
+.wizard-nav {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+}
+.wizard-nav button { min-width: 120px; padding: 8px 16px; }
+.wizard-nav button[hidden] { visibility: hidden; display: inline-block; }
+.row .spacer { flex: 1; }
+details.program { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px; }
+details.program summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 .column {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -78,7 +130,9 @@ label.check input { margin-top: 3px; flex: none; }
 .indent { margin-left: 22px; }
 
 /* presets */
-.preset { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+#presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 8px; }
+#presets > .hint { grid-column: 1 / -1; }
+.preset { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
 .preset label { display: flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; }
 .preset .desc { color: var(--muted); font-size: 12px; margin: 4px 0 0 24px; }
 .preset details { margin: 4px 0 0 24px; font-size: 12px; }
@@ -135,3 +189,32 @@ pre { background: #f7f8fa; border: 1px solid var(--border); border-radius: 6px; 
 .card .meta { font-size: 11px; color: var(--muted); }
 .card .name { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .name.special { color: var(--warn); }
+
+/* loading screen (shown until /api/state has answered) */
+.loading {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+}
+.loading[hidden] { display: none; }
+.loading-box {
+  width: min(460px, 90vw);
+  padding: 28px 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+.loading-app { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+.loading-box h2 { margin: 14px 0 4px; font-size: 16px; }
+.loading-box .hint { margin: 0 0 14px; }
+.spinner {
+  width: 36px; height: 36px; margin: 0 auto;
+  border: 4px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress { height: 6px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }

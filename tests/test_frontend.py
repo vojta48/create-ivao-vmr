@@ -50,6 +50,48 @@ class PageTest(unittest.TestCase):
         # the GUI has to work offline and without a CDN
         self.assertNotRegex(INDEX, r'(?:src|href)="https?://(?!mtl\.ivao\.aero)')
 
+    def test_wizard_steps(self):
+        # The page is a wizard: 1 basic rules (the MTL rules), 2 presets, 3 my rules with the liveries and the output.
+        steps = re.findall(r'<section class="step" id="step(\d)" data-step="(\d)"', INDEX)
+        self.assertEqual(steps, [("1", "1"), ("2", "2"), ("3", "3")])
+        buttons = re.findall(r'id="stepButton(\d)" data-step="(\d)"', INDEX)
+        self.assertEqual(buttons, steps)
+        self.assertIn('id="back"', INDEX)
+        self.assertIn('id="continue"', INDEX)
+        # the first step is the only one shown before the script runs
+        self.assertRegex(INDEX, r'id="step1" data-step="1">')
+        self.assertRegex(INDEX, r'id="step2" data-step="2" hidden>')
+        self.assertRegex(INDEX, r'id="step3" data-step="3" hidden>')
+        # each element sits in the step the user expects it in
+        sections = re.split(r'<section class="step"', INDEX)[1:]
+        self.assertEqual(len(sections), 3)
+        for element in ("mtlEnabled", "mtlStandard", "mtlAll", "mtlFolder", "errors", "checkUpdates"):
+            self.assertIn('id="%s"' % element, sections[0], element)
+        self.assertIn('id="presets"', sections[1])
+        for element in ("rulesBody", "addRule", "importFile", "fileName", "save", "download", "search", "library"):
+            self.assertIn('id="%s"' % element, sections[2], element)
+
+    def test_loading_screen(self):
+        # shown from the first byte of the page (its words are in the HTML) until /api/state has answered
+        self.assertRegex(INDEX, r'<div id="loading" class="loading"[^>]*>')
+        self.assertNotRegex(INDEX, r'<div id="loading"[^>]*hidden')
+        for element in ("loadingTitle", "loadingText", "loadingBar"):
+            self.assertIn('id="%s"' % element, INDEX, element)
+        init = re.search(r"^  async function init\(.*?^  }$", APP_JS, re.S | re.M).group(0)
+        self.assertRegex(init, r"const hideLoading = watchLoading\(\);\s+try \{\s+const data = await api\(\"/api/state\"\)")
+        self.assertTrue(init.rstrip().endswith("hideLoading();\n  }"))  # also after an error, so that the error can be read
+
+    def test_switching_steps_keeps_every_choice(self):
+        # Back and Continue only show and hide the sections. The state of the page (ticked presets, the MTL choice,
+        # my rules, the search) must not be touched, and no step is rendered again from scratch.
+        show = js_function("showStep")
+        self.assertRegex(show, r'\.hidden = i !== state\.step')
+        self.assertEqual(re.findall(r"state\.(\w+)\s*=", show), ["step"])
+        for render in ("renderPresets", "renderRules", "renderMtl", "renderLibrary", "applySettings", "applyMyRules"):
+            self.assertNotIn(render, show, render)
+        for element in ("back", "continue"):
+            self.assertRegex(APP_JS, r'\$\("%s"\)\.addEventListener\("click", \(\) => showStep\(state\.step [-+] 1\)\)' % element)
+
     def test_api_paths_exist_on_the_server(self):
         server = (ROOT / "vmr_gui.py").read_text(encoding="utf-8")
         for path in set(re.findall(r'"(/api/[a-z\-./]+)', APP_JS)):
@@ -139,6 +181,36 @@ class JavaScriptTest(unittest.TestCase):
         install = re.search(r"^  async function installUpdate\(.*?^  }$", APP_JS, re.S | re.M).group(0)
         self.assertNotIn("confirm(", install)  # "Update" installs right away, no second question
         self.assertIn('<dialog id="updateDialog"', INDEX)
+
+    def test_step_summaries(self):
+        # the line under each step button: what is chosen in that step
+        summaries = run_js(["stepSummaries"], "data.map(stepSummaries)", [
+            {"haveMtl": False, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 0, "presets": [], "rules": 0},
+            {"haveMtl": True, "mtlEnabled": False, "mtlMode": "all", "mtlCount": 0, "presets": ["smartwings group"], "rules": 1},
+            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "standard", "mtlCount": 1200, "presets": ["a", "b"], "rules": 2},
+            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 1500, "presets": [], "rules": 0},
+        ])
+        self.assertEqual(summaries, [
+            ["no MTL found", "none ticked", "no rules yet"],
+            ["MTL rules not added", "smartwings group", "1 rule"],
+            ["standard liveries (1200 rules)", "2 ticked: a, b", "2 rules"],
+            ["all liveries (1500 rules)", "none ticked", "no rules yet"],
+        ])
+
+    def test_loading_text(self):
+        # the loading screen for every answer of /api/progress
+        texts = run_js(["loadingText"], "data.map(loadingText)", [
+            {"scanned": False, "done": 0, "total": 0, "liveries": 0, "modelsRoot": None},
+            {"scanned": False, "done": 0, "total": 0, "liveries": 0, "modelsRoot": "D:\\MTL"},
+            {"scanned": False, "done": 50, "total": 200, "liveries": 1234, "modelsRoot": "D:\\MTL"},
+            {"scanned": True, "done": 200, "total": 200, "liveries": 9400, "modelsRoot": "D:\\MTL"},
+        ])
+        self.assertEqual(texts, [
+            {"title": "Starting…", "text": "Looking for your IVAO MTL.", "percent": 0},
+            {"title": "Reading your IVAO MTL…", "text": "Reading D:\\MTL", "percent": 0},
+            {"title": "Reading your IVAO MTL…", "text": "50 of 200 aircraft folders, 1234 liveries so far", "percent": 25},
+            {"title": "Almost ready", "text": "9400 liveries found. Preparing the page…", "percent": 100},
+        ])
 
     def test_python_parse_and_js_build_round_trip(self):
         rules = vmr_gui.parse_vmr(vmr_gui.build_vmr(self.RULES[:2]))
