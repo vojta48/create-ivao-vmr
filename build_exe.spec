@@ -6,13 +6,12 @@
 #
 # The result is dist/IVAO_VMR_Generator.exe (on Windows). The gui and presets folders are bundled
 # inside the file; vmr_gui.py unpacks them at start. GitHub Actions builds it on every push
-# (.github/workflows/build-exe.yml), signs it through SignPath Foundation and attaches it to the
-# release when a tag is pushed.
+# (.github/workflows/build-exe.yml) and attaches it to the release when a tag is pushed. The exe is not
+# code signed.
 #
 # APP_VERSION (environment variable, e.g. 1.2.0) is written into the Windows version resource of the
 # exe as product and file version. The workflow sets it from the tag; a local build gets 0.0.0.
-# The product name and version are part of the SignPath Foundation requirements: every release has to
-# carry the project name and a consistent version in its file metadata.
+# Every release carries the project name and a consistent version in its file metadata.
 
 import os
 import sys

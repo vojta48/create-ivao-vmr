@@ -1,8 +1,7 @@
 name: Build portable exe
 
 # Builds on every pull request, on main and on v* tags (a push to a feature branch with an open PR
-# would otherwise build twice). On a v* tag the exe is also signed through SignPath Foundation and
-# attached to the GitHub release.
+# would otherwise build twice). On a v* tag the exe is also attached to the GitHub release.
 on:
   push:
     branches: ["main"]
@@ -12,13 +11,11 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   build:
     runs-on: windows-latest
     outputs:
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -99,18 +96,14 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "the window self-test failed with exit code $($p.ExitCode)" }
           Write-Host "OK: the application window opened and closed"
 
-      # The unsigned exe. SignPath reads this artifact (a zip with the exe inside), so the artifact
-      # configuration in SignPath has to be <zip-file><pe-file path="IVAO_VMR_Generator.exe">...
-      - name: Upload unsigned exe as workflow artifact
-        id: upload-unsigned
+      - name: Upload the exe as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: IVAO_VMR_Generator-unsigned
+          name: IVAO_VMR_Generator
           path: dist/IVAO_VMR_Generator.exe
 
       # The licenses of what the exe contains (Python, pywebview, WebView2, ...), read from the packages
-      # that were just bundled. Fails when a license text is missing. A separate artifact, so that the
-      # artifact SignPath signs keeps containing only the exe.
+      # that were just bundled. Fails when a license text is missing.
       - name: Collect the licenses
         run: |
           python tools/collect_licenses.py licenses/THIRD-PARTY-LICENSES.txt
@@ -122,47 +115,16 @@ jobs:
           name: licenses
           path: licenses/
 
-  # Code signing through SignPath Foundation (https://signpath.org), only for release tags.
-  # Each signing request has to be approved by hand in SignPath by an approver of the project.
-  # The job is skipped until the SignPath project exists and the repository variables
-  # SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG and SIGNPATH_SIGNING_POLICY_SLUG and the secret
-  # SIGNPATH_API_TOKEN are set (see "Code signing policy" in the README).
-  sign:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Submit signing request to SignPath
-        id: signpath
-        uses: signpath/github-action-submit-signing-request@v3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-          github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
-          wait-for-completion: true
-          # Approving the request by hand can take a while; wait up to 2 hours.
-          wait-for-completion-timeout-in-seconds: 7200
-          output-artifact-directory: signed
-
-      - name: Upload signed exe as workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: IVAO_VMR_Generator
-          path: signed/IVAO_VMR_Generator.exe
-
-  # Attach the exe to the GitHub release of the tag: the signed one when signing ran, otherwise the
-  # unsigned one (so a release still gets its exe before SignPath is set up).
+  # Attach the exe to the GitHub release of the tag.
   release:
-    needs: [build, sign]
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success' && needs.sign.result != 'failure'
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Download the exe
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.sign.result == 'success' && 'IVAO_VMR_Generator' || 'IVAO_VMR_Generator-unsigned' }}
+          name: IVAO_VMR_Generator
           path: release
 
       # LICENSE, NOTICE and THIRD-PARTY-LICENSES.txt go with every copy of the exe (Apache 2.0 and the
@@ -181,5 +143,3 @@ jobs:
             release/LICENSE
             release/NOTICE
             release/THIRD-PARTY-LICENSES.txt
-          body: ${{ needs.sign.result == 'success' && 'IVAO_VMR_Generator.exe is signed by SignPath Foundation (free code signing provided by SignPath.io).' || 'IVAO_VMR_Generator.exe in this release is not code signed.' }}
-          append_body: true

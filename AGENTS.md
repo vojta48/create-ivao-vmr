@@ -33,7 +33,7 @@ the VMR tells it which MTL livery to load for a given callsign and aircraft type
 | `LICENSE`, `NOTICE` | Apache 2.0 (the unmodified text) and the copyright and attribution notice. |
 | `tools/collect_licenses.py`, `tools/licenses/` | Generate `THIRD-PARTY-LICENSES.txt` for the release from the packages bundled into the exe. |
 | `build_exe.spec` | PyInstaller spec for the portable `IVAO_VMR_Generator.exe`. It bundles `gui/`, `presets/` and `version.txt`, and writes the Windows version resource. Both versions come from the `APP_VERSION` environment variable (`0.0.0` if not set). |
-| `.github/workflows/build-exe.yml` | CI: tests, then exe build, server and window smoke tests, SignPath signing and release on `v*` tags. |
+| `.github/workflows/build-exe.yml` | CI: tests, then exe build, server and window smoke tests, and release on `v*` tags. |
 
 Files the programs write at run time:
 - the GUI (since 1.2), per Windows user, never next to the program (see "Where the program keeps its files" in `vmr_gui.py`):
@@ -196,7 +196,7 @@ The Documents folder is often moved into OneDrive or has a translated name (`Dok
 ## The test suite
 
 **Keep it up to date with every change. This is not optional.** The tests are the only thing that stops the
-script and the GUI from drifting apart again, and the only check before a signed release goes out. When you
+script and the GUI from drifting apart again, and the only check before a release goes out. When you
 change behaviour, update the tests in the same commit:
 
 - **New behaviour → new tests.** Bug fixes get a test that fails without the fix.
@@ -286,10 +286,10 @@ plain, explanatory comment style of the rest of the code.
 - Every PR that changes behaviour includes the matching test changes. Reviewers should reject it otherwise.
 - **Releases:**
   1. Merge the PR into `vojta48/create-ivao-vmr:main`.
-  2. Push a tag `vX.Y.Z` on that commit. Only there: never tag a fork, because signing and releases are set
-     up only in vojta48's repository.
-  3. CI builds the exe with `APP_VERSION` from the tag, SignPath signs it after a manual approval, and the
-     release gets the exe, `LICENSE`, `NOTICE` and `THIRD-PARTY-LICENSES.txt`.
+  2. Push a tag `vX.Y.Z` on that commit. Only there: never tag a fork, because releases are published only
+     from vojta48's repository.
+  3. CI builds the exe with `APP_VERSION` from the tag, and the release gets the exe, `LICENSE`, `NOTICE` and
+     `THIRD-PARTY-LICENSES.txt`. The exe is not code signed.
   4. Add the release notes, written for users rather than developers, to the GitHub release.
   Releases are never built on a developer machine. If the settings file format changes in a release, see
   invariant 10 and say so in the release notes.

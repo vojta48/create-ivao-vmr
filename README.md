@@ -177,8 +177,8 @@ The .exe also contains third-party software under its own licenses: Python, pywe
 
 This project is not affiliated with or endorsed by IVAO, VATSIM, the author of vPilot or Microsoft. The livery pictures come from the IVAO MTL catalog at run time and are not part of this project.
 
-## Code signing policy
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+## Privacy
+The program runs entirely on your computer. It does not collect, store or send any personal data, usage statistics or crash reports. The only internet connection it makes is to download the pictures of the liveries it shows from the MTL catalog (`download.ivao.aero`); the request contains nothing but the catalog number of the livery. Each picture is downloaded once and kept in the `previews` folder next to the program. Your settings and your own rules are kept in `vmr_gui_settings.json` and `vmr_gui_my_rules.vmr` next to the program and never leave your computer. Clicking a livery link opens `mtl.ivao.aero` in your browser. Both are covered by [IVAO's privacy policy](https://ivao.aero/privacy). `create_vmr.py` makes no internet connection at all. The local server of the GUI only accepts connections from your own computer.
 
 The Windows executable `IVAO_VMR_Generator.exe` attached to a [release](https://github.com/vojta48/create-ivao-vmr/releases) is digitally signed, so that Windows can verify who published the file and that it was not changed after the build. To check the signature, open the file's *Properties → Digital Signatures* in Windows Explorer, or run `Get-AuthenticodeSignature IVAO_VMR_Generator.exe` in PowerShell. The signer is *SignPath Foundation*. An executable that is not signed (a workflow artifact of a pull request, or a build you made yourself) should only be used if you built it or trust where it came from.
 
