@@ -25,7 +25,7 @@ Both generate exactly the same rules from the MTL.
 **From source:** run `python vmr_gui.py` from the folder with `create_vmr.py`, `vmr_gui.py`, the `gui` folder and the `presets` folder (requires [Python](https://www.python.org/) 3). With `pip install pywebview` it opens in its own window; without it, it opens in your browser at http://127.0.0.1:8765.
 
 ### Which MTL is used
-The program reads where your simulator keeps its packages from the simulator's `UserCfg.opt`, and looks for the `IVAO_MTL` folder in its `Community` folder. This works for MSFS 2020 and MSFS 2024, both the Steam and the Microsoft Store versions. The folder in use is shown at the top of the left column.
+The program reads where your simulator keeps its packages from the simulator's `UserCfg.opt`, and looks for the `IVAO_MTL` folder in its `Community` folder. This works for MSFS 2020 and MSFS 2024, both the Steam and the Microsoft Store versions. The folder in use is shown in step 1, *Basic rules*.
 
 Normally you don't have to do anything. For the cases where you do:
 - If you have the MTL in more than one simulator, the first one found is used: MSFS 2024 before MSFS 2020, Steam before Microsoft Store. You can switch to the other one there.
@@ -35,6 +35,8 @@ Normally you don't have to do anything. For the cases where you do:
 - On the command line, `-c <Community folder>` sets the Community folder and `-d <IVAO_MTL folder>` sets the MTL folder, each for one run.
 
 ### Build your VMR
+The program is a wizard of three steps: **1 Basic rules** (the rules generated from your MTL), **2 Presets** and **3 My rules** (your own rules, the liveries of your MTL, and saving). *Continue* and *Back* move between the steps, and the three buttons at the top jump to any step directly. Every choice is kept while you move back and forth, and the button of each step shows what is chosen in it.
+
 The VMR is put together from three parts, in this order. vPilot uses the first rule that fits, so the earlier parts win, and a later rule with the same callsign and type (a preset rule that the MTL rules repeat, for example) is left out of the file:
 
 1. **Presets**: ready-made rule sets for cases the MTL does not cover. Tick the ones you want. Included are:
@@ -48,10 +50,10 @@ The VMR is put together from three parts, in this order. vPilot uses the first r
    - **Type**: the ICAO aircraft type.
    - **Models**: the MTL livery ids. Separate several ids with `//`; vPilot then picks one at random.
 
-   Click a livery in the right column to add it to the rule you are editing. You can also import the rules of an existing VMR file. Rules with vPilot's `Callsign` (one exact callsign) or `FlightNumberRange` attributes keep them. The GUI warns about liveries that are not installed, and about rules that vPilot would never use because a ticked preset or an earlier rule already has the same callsign and type.
+   Click a livery in the list next to the rules to add it to the rule you are editing. You can also import the rules of an existing VMR file. Rules with vPilot's `Callsign` (one exact callsign) or `FlightNumberRange` attributes keep them. The GUI warns about liveries that are not installed, and about rules that vPilot would never use because a ticked preset or an earlier rule already has the same callsign and type.
 3. **The rules generated from your MTL**: tick *Add the rules generated from my MTL* and choose *standard liveries only* or *all liveries* (see [How the MTL rules are generated](#how-the-mtl-rules-are-generated)).
 
-The right column lists every livery installed in your MTL with its picture, catalog name, type and airline, and marks special liveries. Search by airline, type, id or name. The ↗ opens a livery in the [MTL catalog](https://mtl.ivao.aero/catalog). If some `aircraft.cfg` files of your MTL cannot be read, or contain liveries without a type, without a title or with a title another livery already uses, the GUI lists them above the liveries. Those liveries are missing until you repair the MTL with the MTL Installer.
+Step 3 lists every livery installed in your MTL with its picture, catalog name, type and airline, and marks special liveries. Search by airline, type, id or name. The ↗ opens a livery in the [MTL catalog](https://mtl.ivao.aero/catalog). If some `aircraft.cfg` files of your MTL cannot be read, or contain liveries without a type, without a title or with a title another livery already uses, the GUI lists them in step 1 under the MTL rules. Those liveries are missing until you repair the MTL with the MTL Installer.
 
 **Save** writes the file to the output folder, or anywhere through *Save as…*.
 - The output folder is the `IVAO_MTL` folder, where `create_vmr.py` writes its VMRs too. Without an MTL it is `Documents\vPilot Files` (the folder vPilot keeps its own files in), or `Documents`.

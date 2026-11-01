@@ -27,7 +27,7 @@ the VMR tells it which MTL livery to load for a given callsign and aircraft type
 | --- | --- |
 | `create_vmr.py` | The command-line script. **Standalone, standard library only.** Users drop this single file into `Packages/Community/IVAO_MTL` and run it, so it must never import anything from this repo. It also holds the shared rule logic that the GUI imports. |
 | `vmr_gui.py` | GUI backend: a local `ThreadingHTTPServer` (127.0.0.1) plus a pywebview window, or the browser when pywebview isn't installed. It imports its rule logic from `create_vmr.py`. |
-| `gui/` | Static front end (`index.html`, `app.js`, `style.css`). Plain JS, no build step, no frameworks, no CDN. |
+| `gui/` | Static front end (`index.html`, `app.js`, `style.css`). Plain JS, no build step, no frameworks, no CDN. The page is a wizard of three steps (`<section class="step">`: basic rules = the MTL rules, presets, my rules with the liveries and the output). All steps stay on the page and `showStep` only hides the others, so every choice survives Back and Continue; never rebuild a step's inputs when switching. |
 | `presets/` | Ready-made `.vmr` rule sets offered in the GUI. A `<!-- comment -->` in the file becomes its description. |
 | `tests/` | The `unittest` suite (see [The test suite](#the-test-suite)). It builds a fake MTL in temp folders, so it needs no installed MTL. |
 | `LICENSE`, `NOTICE` | Apache 2.0 (the unmodified text) and the copyright and attribution notice. |

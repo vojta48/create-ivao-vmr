@@ -14,80 +14,108 @@
 <dialog id="updateDialog" class="update"></dialog>
 <div id="notice" class="notice" role="alert" hidden></div>
 
+<!-- The page is a wizard of three steps. Every step keeps its own elements on the page; going back and forth only
+     shows and hides them, so nothing that was chosen or typed is lost. The step buttons jump to any step directly. -->
+<nav class="steps" aria-label="Steps">
+  <button type="button" class="step-button" id="stepButton1" data-step="1"><span class="num">1</span><span class="label">Basic rules</span><span class="summary" id="stepSummary1"></span></button>
+  <button type="button" class="step-button" id="stepButton2" data-step="2"><span class="num">2</span><span class="label">Presets</span><span class="summary" id="stepSummary2"></span></button>
+  <button type="button" class="step-button" id="stepButton3" data-step="3"><span class="num">3</span><span class="label">My rules</span><span class="summary" id="stepSummary3"></span></button>
+</nav>
+
 <main>
-  <section class="column presets">
-    <h2>IVAO MTL</h2>
-    <p class="hint">
-      The rules generated from your MTL installation, the same ones <code>create_vmr.py</code> makes. They are put
-      <b>after</b> the presets and your own rules, so one VMR file is enough in vPilot.
-    </p>
-    <div id="mtlFolder" class="hint path"></div>
-    <div id="mtl">
-      <label class="check"><input type="checkbox" id="mtlEnabled"> <span id="mtlLabel">Add the rules generated from my MTL</span></label>
-      <div class="indent">
-        <label class="check"><input type="radio" name="mtlMode" id="mtlStandard" value="standard"> <span id="mtlStandardLabel">standard liveries only</span></label>
-        <label class="check"><input type="radio" name="mtlMode" id="mtlAll" value="all"> <span id="mtlAllLabel">all liveries</span></label>
+  <!-- Step 1: the rules generated from the MTL, the same ones create_vmr.py makes -->
+  <section class="step" id="step1" data-step="1">
+    <div class="column">
+      <h2>Basic rules: your IVAO MTL</h2>
+      <p class="hint">
+        The rules generated from your MTL installation, the same ones <code>create_vmr.py</code> makes. They are put
+        <b>after</b> the presets and your own rules, so one VMR file is enough in vPilot.
+      </p>
+      <div id="mtlFolder" class="hint path"></div>
+      <div id="mtl">
+        <label class="check"><input type="checkbox" id="mtlEnabled"> <span id="mtlLabel">Add the rules generated from my MTL</span></label>
+        <div class="indent">
+          <label class="check"><input type="radio" name="mtlMode" id="mtlStandard" value="standard"> <span id="mtlStandardLabel">standard liveries only</span></label>
+          <label class="check"><input type="radio" name="mtlMode" id="mtlAll" value="all"> <span id="mtlAllLabel">all liveries</span></label>
+        </div>
+      </div>
+      <details id="errors" class="warning" hidden></details>
+
+      <details class="program">
+        <summary>Program</summary>
+        <label class="check"><input type="checkbox" id="checkUpdates"> <span>Check for a new version at start (asks GitHub)</span></label>
+        <div class="row"><button id="checkNow" class="small secondary">Check now</button> <span id="updateInfo" class="hint"></span></div>
+        <p id="dataDir" class="hint path"></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- Step 2: ready-made rule sets -->
+  <section class="step" id="step2" data-step="2" hidden>
+    <div class="column">
+      <h2>Presets</h2>
+      <p class="hint">Ready-made rule sets from the <code>presets</code> folder. Tick the ones you want in your VMR. They are put before your own rules and the rules generated from the MTL.</p>
+      <div id="presets"></div>
+    </div>
+  </section>
+
+  <!-- Step 3: the user's own rules, the liveries to pick from, and the output -->
+  <section class="step" id="step3" data-step="3" hidden>
+    <div class="columns">
+      <div class="column rules">
+        <h2>My rules</h2>
+        <p class="hint">
+          One line per rule. <b>Callsign</b> is the 3-letter airline code (empty = any callsign), <b>Type</b> the ICAO aircraft
+          type, <b>Models</b> the MTL livery ids. Several models are separated with <code>//</code>; vPilot picks one at random.
+          Each model links to its page in the <a href="https://mtl.ivao.aero/catalog" target="_blank" rel="noreferrer">MTL catalog</a>.
+        </p>
+        <table id="rulesTable">
+          <thead>
+            <tr><th>Callsign</th><th>Type</th><th>Models</th><th></th></tr>
+          </thead>
+          <tbody id="rulesBody"></tbody>
+        </table>
+        <div class="row">
+          <button id="addRule">+ Add rule</button>
+          <button id="clearRules" class="secondary">Clear</button>
+          <span class="spacer"></span>
+          <span class="hint">Import a VMR:</span>
+          <input type="file" id="importFile" accept=".vmr,.xml,text/xml" title="Load the rules of an existing VMR file into My rules so you can edit them">
+        </div>
+
+        <h2>Output</h2>
+        <div id="outputSummary" class="hint"></div>
+        <div class="row">
+          <input type="text" id="fileName" value="custom.vmr">
+          <button id="save">Save to output folder</button>
+          <button id="download" class="secondary">Download</button>
+        </div>
+        <div id="outputFolder" class="hint"></div>
+        <div id="saveResult" class="hint"></div>
+        <details>
+          <summary>Show VMR text</summary>
+          <pre id="vmrText"></pre>
+        </details>
+      </div>
+
+      <div class="column library">
+        <h2>Liveries in your MTL</h2>
+        <p class="hint">Click a livery to add it to the selected rule (the rule you edited last). The pictures come from the MTL catalog (network needed the first time). The ↗ opens the livery in the catalog.</p>
+        <div class="row">
+          <input type="search" id="search" placeholder="Search airline, type, id or name (e.g. TVS, B738, Smartwings)">
+        </div>
+        <div id="libraryInfo" class="hint"></div>
+        <div id="library" class="grid"></div>
       </div>
     </div>
-
-    <h2>Presets</h2>
-    <p class="hint">Ready-made rule sets from the <code>presets</code> folder. Tick the ones you want in your VMR.</p>
-    <div id="presets"></div>
-
-    <h2>Import a VMR</h2>
-    <p class="hint">Load the rules of an existing VMR file into "My rules" so you can edit them.</p>
-    <input type="file" id="importFile" accept=".vmr,.xml,text/xml">
-
-    <h2>Program</h2>
-    <label class="check"><input type="checkbox" id="checkUpdates"> <span>Check for a new version at start (asks GitHub)</span></label>
-    <div class="row"><button id="checkNow" class="small secondary">Check now</button> <span id="updateInfo" class="hint"></span></div>
-    <p id="dataDir" class="hint path"></p>
-  </section>
-
-  <section class="column rules">
-    <h2>My rules</h2>
-    <p class="hint">
-      One line per rule. <b>Callsign</b> is the 3-letter airline code (empty = any callsign), <b>Type</b> the ICAO aircraft
-      type, <b>Models</b> the MTL livery ids. Several models are separated with <code>//</code>; vPilot picks one at random.
-      Each model links to its page in the <a href="https://mtl.ivao.aero/catalog" target="_blank" rel="noreferrer">MTL catalog</a>.
-    </p>
-    <table id="rulesTable">
-      <thead>
-        <tr><th>Callsign</th><th>Type</th><th>Models</th><th></th></tr>
-      </thead>
-      <tbody id="rulesBody"></tbody>
-    </table>
-    <div class="row">
-      <button id="addRule">+ Add rule</button>
-      <button id="clearRules" class="secondary">Clear</button>
-    </div>
-
-    <h2>Output</h2>
-    <div id="outputSummary" class="hint"></div>
-    <div class="row">
-      <input type="text" id="fileName" value="custom.vmr">
-      <button id="save">Save to output folder</button>
-      <button id="download" class="secondary">Download</button>
-    </div>
-    <div id="outputFolder" class="hint"></div>
-    <div id="saveResult" class="hint"></div>
-    <details>
-      <summary>Show VMR text</summary>
-      <pre id="vmrText"></pre>
-    </details>
-  </section>
-
-  <section class="column library">
-    <h2>Liveries in your MTL</h2>
-    <p class="hint">Click a livery to add it to the selected rule (the rule you edited last). The pictures come from the MTL catalog (network needed the first time). The ↗ opens the livery in the catalog.</p>
-    <div class="row">
-      <input type="search" id="search" placeholder="Search airline, type, id or name (e.g. TVS, B738, Smartwings)">
-    </div>
-    <details id="errors" class="warning" hidden></details>
-    <div id="libraryInfo" class="hint"></div>
-    <div id="library" class="grid"></div>
   </section>
 </main>
+
+<footer class="wizard-nav">
+  <button type="button" id="back" class="secondary">‹ Back</button>
+  <span id="stepPosition" class="hint"></span>
+  <button type="button" id="continue">Continue ›</button>
+</footer>
 
 <script src="/static/app.js"></script>
 </body>

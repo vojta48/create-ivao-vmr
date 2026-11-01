@@ -23,7 +23,9 @@
     settingsSent: "",       // the settings last sent to the server, so that unchanged settings are not written again
     rulesLoaded: false,     // my rules came from the server; only then are changes sent back
     rulesSent: "",          // my rules last sent to the server
+    step: 1,                // the wizard step on the screen (1 basic rules, 2 presets, 3 my rules)
   };
+  const STEPS = 3;
   // vmr_gui.py keeps the settings in settings.json and my rules in my_rules.vmr (in AppData), because the
   // application window does not keep browser storage. Versions before 1.1.0 kept my rules in the browser under
   // this key; they are moved to the file once.
@@ -336,6 +338,44 @@
     return chip;
   }
 
+  // ---------------------------------------------------------------- wizard steps
+  // The page is one wizard: 1 basic rules (the MTL), 2 presets, 3 my rules with the liveries and the output. All three
+  // steps are always on the page and keep their inputs; showStep only shows one and hides the others. Nothing in
+  // `state` is touched here, so Back and Continue never lose a choice, and the step buttons jump anywhere directly.
+  function showStep(step) {
+    state.step = Math.min(STEPS, Math.max(1, step));
+    for (let i = 1; i <= STEPS; i++) $("step" + i).hidden = i !== state.step;
+    renderSteps();
+    window.scrollTo(0, 0);
+  }
+
+  // The step buttons show what was chosen in each step, so the user sees that a choice is kept while on another step.
+  function renderSteps() {
+    const summaries = stepSummaries({
+      haveMtl: state.liveries.size > 0, mtlEnabled: state.mtl.enabled, mtlMode: state.mtl.mode, mtlCount: mtlRulesSelected().length,
+      presets: state.presets.filter((p) => state.selectedPresets.has(p.id)).map((p) => p.name), rules: completeRules().length,
+    });
+    for (let i = 1; i <= STEPS; i++) {
+      const button = $("stepButton" + i);
+      button.classList.toggle("current", i === state.step);
+      button.classList.toggle("done", i < state.step);
+      button.setAttribute("aria-current", i === state.step ? "step" : "false");
+      $("stepSummary" + i).textContent = summaries[i - 1];
+    }
+    $("back").hidden = state.step === 1;
+    $("continue").hidden = state.step === STEPS;
+    $("stepPosition").textContent = "Step " + state.step + " of " + STEPS;
+  }
+
+  // One line per step: what is chosen in it. (A pure function, so that the tests can run it in Node.js.)
+  function stepSummaries(info) {
+    const mtl = !info.haveMtl ? "no MTL found" : !info.mtlEnabled ? "MTL rules not added"
+      : (info.mtlMode === "all" ? "all liveries" : "standard liveries") + " (" + info.mtlCount + " rules)";
+    const presets = info.presets.length === 0 ? "none ticked" : info.presets.length === 1 ? info.presets[0] : info.presets.length + " ticked: " + info.presets.join(", ");
+    const rules = info.rules === 0 ? "no rules yet" : info.rules + (info.rules === 1 ? " rule" : " rules");
+    return [mtl, presets, rules];
+  }
+
   // ---------------------------------------------------------------- presets
   function renderPresets() {
     const container = $("presets");
@@ -356,7 +396,7 @@
         const line = el("li", {}, ruleConditions(rule) + " → ");
         rule.models.forEach((model, i) => {
           const known = state.liveries.size === 0 || state.liveries.has(model);
-          line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show in the library" : "Not installed in your MTL", onclick: () => { $("search").value = model; renderLibrary(); } }, model));
+          line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show in the library" : "Not installed in your MTL", onclick: () => { $("search").value = model; renderLibrary(); showStep(3); } }, model));
           if (i < rule.models.length - 1) line.append(" // ");
         });
         list.append(line);
@@ -509,6 +549,7 @@
     $("outputSummary").textContent = state.mtl.enabled
       ? own + " rules from presets and my rules, then " + mtlRulesSelected().length + " rules generated from the MTL. In vPilot this file replaces the MTL VMR."
       : own + " rules from presets and my rules. In vPilot put this file above the IVAO MTL VMR.";
+    renderSteps();
     saveDraft();
   }
 
@@ -685,12 +726,16 @@
     renderMtl();
     renderRules();
     renderLibrary();
+    showStep(1);
   }
 
   $("mtlEnabled").addEventListener("change", () => { state.mtl.enabled = $("mtlEnabled").checked; renderMtl(); updateOutput(); });
   $("mtlStandard").addEventListener("change", () => { state.mtl.mode = "standard"; updateOutput(); });
   $("mtlAll").addEventListener("change", () => { state.mtl.mode = "all"; updateOutput(); });
 
+  $("back").addEventListener("click", () => showStep(state.step - 1));
+  $("continue").addEventListener("click", () => showStep(state.step + 1));
+  for (const button of document.querySelectorAll(".step-button")) button.addEventListener("click", () => showStep(Number(button.dataset.step)));
   $("addRule").addEventListener("click", () => addRule());
   $("clearRules").addEventListener("click", () => { if (state.rules.length === 0 || confirm("Remove all your rules?")) { state.rules = []; state.selectedRule = -1; renderRules(); } });
   $("save").addEventListener("click", save);
