@@ -43,7 +43,7 @@ The VMR is put together from three parts, in this order. vPilot uses the first r
    - **Airline groups** (files named `*_group.vmr`): the airlines of a group fly each other's aircraft or share a livery, so a callsign without a livery of its own gets the group's one: `smartwings_group` (Smartwings, Smartwings Poland/Hungary/Slovakia, Czech Airlines), `lufthansa_group`, `air_france_klm_group`, `iag_group`, `latam_group`, `sas_group`, `norwegian_group`, `ryanair_group`, `wizz_air_group`, `easyjet_group` and `tui_group`;
    - **Other presets**: `airBaltic_ACMI` (airBaltic A220s wet-leased to Brussels Airlines, Austrian, Lufthansa, Air Serbia and SAS) and `extra_rules` (liveries missing from the MTL, substituted with a similar one).
 
-   Click a livery id in a preset's rules to see its picture next to the presets.
+   Click a livery id in a preset's rules to see its picture in a window over the page; close it with its button, Escape or a click outside it.
 
    Every `.vmr` file in the `presets` folder is offered as a preset, and a `<!-- comment -->` in the file is shown as its description. Put your own presets into `%APPDATA%\IVAO VMR Generator\presets` (create the folder). A preset there replaces a built-in one with the same name. A `presets` folder next to the .exe, where version 1.1 read them, still works.
 2. **My rules**: one line per rule.

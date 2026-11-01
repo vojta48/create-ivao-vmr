@@ -135,10 +135,14 @@ label.check input { margin-top: 3px; flex: none; }
 .preset-group .group-hint { color: var(--muted); font-size: 12px; margin: 2px 0 6px 24px; }
 .preset-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; margin-left: 24px; }
 #presets > .hint { grid-column: 1 / -1; }
-.preset-preview .card { cursor: default; max-width: 320px; }
-.preset-preview .card:hover { border-color: var(--border); background: #fff; }
-.preset-preview .card .name { white-space: normal; }
-.preset-preview .empty { color: var(--muted); font-size: 12px; }
+/* the livery of a preset rule, shown over the page */
+dialog.livery-dialog { width: min(420px, 90vw); padding: 12px 14px; border: 1px solid var(--accent); border-radius: 8px; }
+dialog.livery-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog.livery-dialog .card { cursor: default; border: none; padding: 0; }
+dialog.livery-dialog .card:hover { background: #fff; }
+dialog.livery-dialog .card .name { white-space: normal; font-size: 13px; color: var(--fg); }
+dialog.livery-dialog .card .meta { font-size: 12px; }
+dialog.livery-dialog .close-row { display: flex; justify-content: flex-end; margin-top: 10px; }
 .preset { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
 .preset label { display: flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; }
 .preset .desc { color: var(--muted); font-size: 12px; margin: 4px 0 0 24px; }
