@@ -62,6 +62,35 @@ class AirlineCodeTest(unittest.TestCase):
         self.assertEqual(self.code("", "Cessna 172"), "")
         self.assertEqual(self.code('""', ""), "")
 
+    def test_white_and_blank_textures_are_the_plain_model(self):
+        # found in the MTL: the plain model is not always called "default". Without this, "white" and "blank"
+        # would become the callsigns WHI and BLA (BLA is Blue Air).
+        self.assertEqual(self.code("white", "Cessna Caravan", "C208"), "")
+        self.assertEqual(self.code("White", "Falcon 50 (White)", "FA50"), "")
+        self.assertEqual(self.code("BLANK", "General Aviation (Blank)", "B722"), "")
+        self.assertEqual(self.code("blank", "General Aviation (Blank)", "BE36"), "")
+        # real airlines whose code starts the same way keep their rule
+        self.assertEqual(self.code("BLA", "Blue Air (BLA)", "B733"), "BLA")
+        self.assertEqual(self.code("WHT", "White Airways (WHT)", "A310"), "WHT")
+        self.assertEqual(self.code("BLAWL", "Blue Air (Winglets) (BLA)", "B738"), "BLA")
+
+    def test_plain_model_with_a_generic_name_is_type_only(self):
+        # found in the MTL: plain models with the texture ZZZ and a generic catalog name (Vojta's SR22 case)
+        self.assertEqual(self.code("ZZZ", "Default", "SR22"), "")
+        self.assertEqual(self.code("ZZZ", "White", "F70"), "")
+        self.assertEqual(self.code("ZZZ2", "White (Blank)", "F100"), "")
+        self.assertEqual(self.code("ZZZ", "General Aviation", "AT43"), "")
+        self.assertEqual(self.code("BBA", "White (Blank)", "LJ25"), "")
+        # a ZZZ livery of a particular aircraft or owner is still left out
+        self.assertIsNone(self.code("ZZZ", "Las Vegas Sands (VP-CMS)", "A345"))
+        self.assertIsNone(self.code("ZZZWL", "General Aviation (HZ-HAA) (winglets) (ZZZ)", "B735"))
+        self.assertIsNone(self.code("ZZZ2", "White Blue Livery", "C207"))
+        self.assertIsNone(self.code("ZZZ", "Private (ZZZ)", "A320"))
+        # and a generic name with an airline code is that airline's livery
+        self.assertEqual(self.code("ZZZ", "Default (ABC)", "A320"), "ABC")
+        self.assertTrue(create_vmr.is_plain_model_name("General Aviation (Blank)"))
+        self.assertFalse(create_vmr.is_plain_model_name("General Aviation (HZ-HAA)"))
+
     def test_plain_model_named_like_its_type_is_type_only(self):
         self.assertEqual(self.code("HAR", "AV-8 Harrier", "HAR"), "")
         self.assertEqual(self.code("F5", "F5 (Grey)", "F5"), "")
