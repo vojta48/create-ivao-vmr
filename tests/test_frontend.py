@@ -157,7 +157,16 @@ class JavaScriptTest(unittest.TestCase):
         self.assertIn('<dialog id="liveryDialog"', INDEX)
         self.assertNotIn("presetPreview", INDEX)
         self.assertNotIn("presetPreview", APP_JS)
-        self.assertIn('$("liveryDialog")', js_function("showPresetPreview"))
+        self.assertIn('$("liveryDialog")', js_function("showLiveryDialog"))
+
+    def test_model_chip_opens_the_same_dialog(self):
+        # a model already chosen in one of my rules opens in the same dialog as a livery of a preset (step 3 like step 2);
+        # the ↗ in the chip still goes to the MTL catalog without opening the dialog
+        chip = js_function("modelChip")
+        self.assertIn("onclick: () => showLiveryDialog(mtlId)", chip)
+        self.assertIn('catalogLink(mtlId, "↗")', chip)
+        self.assertIn("e.stopPropagation()", chip)
+        self.assertIn("showLiveryDialog(model)", js_function("presetCard"))
 
     def test_group_presets_makes_the_two_groups_of_the_tree(self):
         presets = [

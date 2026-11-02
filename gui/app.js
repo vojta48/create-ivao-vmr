@@ -326,15 +326,19 @@
     return img;
   }
 
-  // A small label for one model of a rule: its picture, its id (linked to the MTL catalog) and its livery name.
+  // A small label for one model of a rule: its picture, its id and its livery name. A click shows the livery in
+  // the same dialog as a livery of a preset; the ↗ opens it in the MTL catalog instead.
   function modelChip(mtlId) {
     const livery = state.liveries.get(mtlId);
     const missing = state.liveries.size > 0 && !livery;
-    const chip = el("span", { class: "chip" + (missing ? " missing" : ""), title: missing ? "Not installed in your MTL" : (livery && livery.name) || mtlId }, catalogLink(mtlId, mtlId + " ↗"));
+    const chip = el("span", { class: "chip" + (missing ? " missing" : ""), title: missing ? "Not installed in your MTL" : "Show the livery", onclick: () => showLiveryDialog(mtlId) }, mtlId);
     const img = preview(livery, "thumb");
     if (img) chip.prepend(img);
     if (livery && livery.name) chip.append(" ", el("span", { class: "muted" }, livery.name));
     if (missing) chip.append(" ", el("span", { class: "muted" }, "(not installed)"));
+    const link = catalogLink(mtlId, "↗");
+    link.addEventListener("click", (e) => e.stopPropagation());
+    chip.append(" ", link);
     return chip;
   }
 
@@ -444,7 +448,7 @@
       const line = el("li", {}, ruleConditions(rule) + " → ");
       rule.models.forEach((model, i) => {
         const known = state.liveries.size === 0 || state.liveries.has(model);
-        line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show the livery" : "Not installed in your MTL", onclick: () => showPresetPreview(model) }, model));
+        line.append(el("span", { class: "model" + (known ? "" : " missing"), title: known ? "Show the livery" : "Not installed in your MTL", onclick: () => showLiveryDialog(model) }, model));
         if (i < rule.models.length - 1) line.append(" // ");
       });
       list.append(line);
@@ -457,9 +461,9 @@
     );
   }
 
-  // The livery clicked in a preset, shown in a dialog over the page (the page stays on the presets step and where
-  // it was scrolled to). The dialog closes with its button, with Escape, or with a click on the backdrop.
-  function showPresetPreview(mtlId) {
+  // The livery clicked in a preset or in one of my rules, shown in a dialog over the page (the page stays on its step
+  // and where it was scrolled to). The dialog closes with its button, with Escape, or with a click on the backdrop.
+  function showLiveryDialog(mtlId) {
     const dialog = $("liveryDialog");
     dialog.innerHTML = "";
     const livery = state.liveries.get(mtlId);
