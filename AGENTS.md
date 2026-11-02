@@ -97,7 +97,9 @@ The Documents folder is often moved into OneDrive or has a translated name (`Dok
   - duplicated sections (hence `strict=False`);
   - files that are UTF-8 with a BOM, or cp1252.
 - Special airline codes:
-  - `default` texture or no texture: the plain model, which becomes a **type-only** rule.
+  - `default`, `white` or `blank` texture or no texture: the plain model, which becomes a **type-only** rule.
+    So does a livery with a generic catalog name and no code ("Default", "White (Blank)", "General Aviation"),
+    whatever its texture (`SR22ZZZ` = "Default" is the plain SR22). See `PLAIN_TEXTURES` / `is_plain_model_name`.
   - Texture equal to the type (`HAR` for "AV-8 Harrier") with no catalog code: the plain model, **type-only**.
   - Type `ZZZZ` (blimp, balloon): **type-only**. The invisible dummy (texture `dummy`, "No Model (Invisible)")
     is **left out**, so vPilot never picks it at random.

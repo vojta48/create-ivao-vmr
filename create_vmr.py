@@ -156,13 +156,28 @@ NO_AIRLINE = "ZZZ"
 #   model with the type as texture (texture="HAR" for "AV-8 Harrier" of type HAR) get a type-only rule as well.
 #   The MTL also has an invisible model (texture="dummy", "No Model (Invisible)"). It is left out as well: in the
 #   type-only ZZZZ rule vPilot would pick it at random and show some aircraft as nothing at all.
+#   The plain model is not always called "default": the MTL also names its textures "white" or "blank"
+#   (texture="white" for "Cessna Caravan", texture="BLANK" for "General Aviation (Blank)"), and some plain models
+#   have the texture ZZZ with a generic catalog name ("Default", "White", "White (Blank)", "General Aviation").
+#   All of these are the plain model of their type and get the type-only rule; without it, "white" and "blank"
+#   would become the callsigns WHI and BLA (Blue Air!), and the ZZZ ones would be left out, so an SR22 without an
+#   airline rule would show nothing although the MTL has a default SR22.
 INVISIBLE_TEXTURE = "dummy"
+PLAIN_TEXTURES = ("", "default", "white", "blank")
+PLAIN_NAMES = ("default", "white", "blank", "general aviation")
+PLAIN_QUALIFIERS = ("white", "blank")
+
+def is_plain_model_name(ui_variation):
+    """True for a catalog name that only says the livery is the plain model: "Default", "White (Blank)",
+    "General Aviation (Blank)". A name with an airline code is never one."""
+    base, qualifiers, code = livery_name_parts(ui_variation)
+    return code == "" and base.lower() in PLAIN_NAMES and all(q.strip().lower() in PLAIN_QUALIFIERS for q in qualifiers)
 
 def mtl_airline_code(texture_name, ui_variation, type_code=""):
     texture = texture_name.strip().strip("\"")
     if texture.lower() == INVISIBLE_TEXTURE:
         return None
-    if texture == "" or texture.lower() == "default" or type_code == "ZZZZ":
+    if texture.lower() in PLAIN_TEXTURES or type_code == "ZZZZ" or is_plain_model_name(ui_variation):
         return ""
     base, qualifiers, code = livery_name_parts(ui_variation)
     prefix = texture[:3].upper()
