@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support import gui_rules, read_rules, run_script, vmr_gui
+from support import create_vmr, gui_rules, read_rules, run_script, vmr_gui
 
 MTL = os.environ.get("IVAO_MTL_DIR")
 
@@ -55,6 +55,20 @@ class RealMtlTest(unittest.TestCase):
             self.assertRegex(prefix, r"^([A-Z]{3})?$")
             self.assertTrue(type_code and models)
         self.assertEqual(len({(p, t) for p, t, _ in rules}), len(rules))
+
+    def test_types_with_a_house_livery_have_a_fallback(self):
+        # Vojta's case: the MTL has no KLM A350-900 and no plain A359, but it has "Airbus Industries (AIB)"
+        rules = {(p, t): m for p, t, m in gui_rules(self.library, False)}
+        type_only = {t for p, t in rules if p == ""}
+        for type_code in ("A359", "A20N", "B738", "B77W", "AT45"):
+            self.assertIn(type_code, type_only, type_code)
+        self.assertIn("A359AIB", rules[("", "A359")])
+        self.assertIn(("AIB", "A359"), rules)
+        # every type that has any livery in the rules of an airline, or a left-out livery, has a type-only rule
+        # unless nothing but airline liveries exist for it
+        for livery in self.library.liveries.values():
+            if livery["inVmr"] and livery["airline"] in create_vmr.MANUFACTURER_CODES:
+                self.assertIn(livery["type"], type_only, livery["id"])
 
     def test_every_livery_has_a_catalog_number(self):
         self.assertEqual([l["id"] for l in self.library.liveries.values() if not l["catalogId"]], [])

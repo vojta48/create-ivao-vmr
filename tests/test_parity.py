@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support import LEFT_OUT, gui_rules, livery, make_mtl, read_rules, run_script, vmr_gui, write_model
+from support import FALLBACKS, LEFT_OUT, gui_rules, livery, make_mtl, read_rules, run_script, vmr_gui, write_model
 
 
 class ParityTest(unittest.TestCase):
@@ -52,6 +52,13 @@ class ParityTest(unittest.TestCase):
         self.assertEqual(rules[("UQA", "A320")], ("A320UQ",))
         self.assertEqual(rules[("", "HAR")], ("HAR",))
         self.assertEqual(rules[("UAE", "A388")], ("A388UAE", "A388UAE2"))
+        # the fallbacks of the types without a plain model: the house livery keeps its own rule too
+        self.assertEqual(rules[("", "F14")], ("F14@IR",))
+        self.assertEqual(rules[("", "A359")], ("A359AIB",))
+        self.assertEqual(rules[("AIB", "A359")], ("A359AIB",))
+        self.assertEqual(rules[("DLH", "A359")], ("A359DLH",))
+        self.assertEqual(rules[("", "H25B")], ("H25BZZZ",))
+        self.assertEqual(rules[("ABC", "H25B")], ("H25BABC",))
         self.assertNotIn(("NBA", "A388"), rules)
         self.assertNotIn(("DUP", "A320"), rules)
         for prefix, _ in rules:
@@ -65,10 +72,16 @@ class ParityTest(unittest.TestCase):
         self.assertEqual(set(rules), {(a, t) for a, t, _ in gui_rules(self.library, False)})
 
     def test_same_liveries_left_out(self):
-        script_left_out = {t for t, info in self.script.livery_info.items() if info[0] is None}
+        in_fallback = {t for titles in self.script.fallback_rules.values() for t in titles}
+        script_left_out = {t for t, info in self.script.livery_info.items() if info[0] is None and t not in in_fallback}
         gui_left_out = {l["id"] for l in self.library.liveries.values() if not l["inVmr"]}
         self.assertEqual(script_left_out, gui_left_out)
         self.assertEqual(gui_left_out, LEFT_OUT)
+
+    def test_same_fallbacks(self):
+        self.assertEqual({t: tuple(m) for t, m in self.script.fallback_rules.items()}, FALLBACKS)
+        gui_fallback = {l["id"] for l in self.library.liveries.values() if l["fallback"]}
+        self.assertEqual(gui_fallback, {t for titles in FALLBACKS.values() for t in titles})
 
     def test_rules_are_in_a_stable_order(self):
         again = vmr_gui.Library(self.mtl).scan()

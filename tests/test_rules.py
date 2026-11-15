@@ -37,6 +37,13 @@ class StandardLiveryTest(unittest.TestCase):
                   "WL", "Winglets", "Blended Winglets", "Split Winglets", "Scimitar Winglets", "Sharklets"):
             self.assertTrue(create_vmr.is_standard_livery("X", "Airline (%s) (ABC)" % q), q)
 
+    def test_white_is_standard(self):
+        # the white or blank livery is the standard of the plain model, not a special livery
+        self.assertTrue(create_vmr.is_standard_livery("ZZZ", "Hawker 800 (White)"))
+        self.assertTrue(create_vmr.is_standard_livery("BLANK", "General Aviation (Blank)"))
+        self.assertTrue(create_vmr.is_standard_livery("ZZZ2", "White (Blank)"))
+        self.assertFalse(create_vmr.is_standard_livery("ZZZ2", "White Blue Livery (Blue)"))
+
     def test_neutral_and_special_together_is_special(self):
         self.assertFalse(create_vmr.is_standard_livery("X", "Wizz Air (Old Colors) (Sharklets) (WZZ)"))
 
@@ -91,6 +98,21 @@ class AirlineCodeTest(unittest.TestCase):
         self.assertTrue(create_vmr.is_plain_model_name("General Aviation (Blank)"))
         self.assertFalse(create_vmr.is_plain_model_name("General Aviation (HZ-HAA)"))
 
+    def test_white_livery_named_after_the_aircraft_is_the_plain_model(self):
+        # found in the MTL: the white model of a type is often named after the aircraft, with the texture ZZZ
+        self.assertEqual(self.code("ZZZ", "Hawker 800 (White)", "H25B"), "")
+        self.assertEqual(self.code("ZZZ", "Citation Longitude (White)", "C700"), "")
+        self.assertEqual(self.code("ZZZ", "Antonov AN2 (White)", "AN2"), "")
+        self.assertEqual(self.code("TXH", "Bell B222 Skids (White)", "B222"), "")
+        self.assertEqual(self.code("ZZZ", "House Colors", "MD11"), "")
+        # a white livery with a registration or another description is a particular aircraft, or an airline's
+        self.assertIsNone(self.code("@UL2", "United States Air Force (white) (C-20C)", "GLF3"))
+        self.assertIsNone(self.code("ZZZ", "Learjet 31", "LJ31"))
+        self.assertEqual(self.code("ECF", "Eurocopter 'White' (ECF)", "EC35"), "ECF")
+        self.assertEqual(self.code("GLF3", "Gulfstream (White) (GLF)", "GLF3"), "GLF")
+        self.assertTrue(create_vmr.is_plain_model_name("Phenom 100 (White)"))
+        self.assertFalse(create_vmr.is_plain_model_name("Phenom 100"))
+
     def test_plain_model_named_like_its_type_is_type_only(self):
         self.assertEqual(self.code("HAR", "AV-8 Harrier", "HAR"), "")
         self.assertEqual(self.code("F5", "F5 (Grey)", "F5"), "")
@@ -144,6 +166,47 @@ class XmlTest(unittest.TestCase):
     def test_build_rule_without_prefix(self):
         for callsign, type_code in (("", "C172"), ("def", "C172"), ("SHP", "ZZZZ")):
             self.assertNotIn("CallsignPrefix", create_vmr.build_rule(callsign, type_code, "X"))
+
+
+class TypeFallbacksTest(unittest.TestCase):
+    # (MTL id, airline code as mtl_airline_code gives it, type): None is no usable code, "" the plain model
+    liveries = [
+        ("A359DLH", "DLH", "A359"), ("A359AIB", "AIB", "A359"), ("A359AIBWL", "AIB", "A359"), ("A359ZZZ", None, "A359"),
+        ("B737DLH", "DLH", "B737"), ("B737", "", "B737"), ("B737ZZZ", None, "B737"),
+        ("F14@UN", "USN", "F14"), ("F14@IR", None, "F14"), ("F14@IR2", None, "F14"),
+        ("C172", "", "C172"),
+        ("B789DLH", "DLH", "B789"),
+    ]
+
+    def test_fallbacks(self):
+        self.assertEqual(create_vmr.type_fallbacks(self.liveries), {
+            "A359": ["A359AIB", "A359AIBWL"],  # the house livery, not the ZZZ one
+            "F14": ["F14@IR", "F14@IR2"],      # no house livery: the liveries without a code
+            # B737 and C172 have a plain model; the B789 has nothing to fall back to (vPilot's default aircraft)
+        })
+
+    def test_added_to_the_model_list(self):
+        model_list = {"DLH": {"A359": ["A359DLH"], "B737": ["B737DLH"], "B789": ["B789DLH"]}, "AIB": {"A359": ["A359AIB", "A359AIBWL"]},
+                      "": {"B737": ["B737"], "C172": ["C172"]}, "USN": {"F14": ["F14@UN"]}}
+        added = create_vmr.add_type_fallbacks(model_list, self.liveries)
+        self.assertEqual(added, {"A359": ["A359AIB", "A359AIBWL"], "F14": ["F14@IR", "F14@IR2"]})
+        self.assertEqual(model_list[""], {"B737": ["B737"], "C172": ["C172"], "A359": ["A359AIB", "A359AIBWL"], "F14": ["F14@IR", "F14@IR2"]})
+        # the airline rules are unchanged, so the fallback never takes over a rule of an airline
+        self.assertEqual(model_list["AIB"], {"A359": ["A359AIB", "A359AIBWL"]})
+        self.assertEqual(model_list["DLH"]["A359"], ["A359DLH"])
+        # a model list without any type-only rule yet gets the key
+        self.assertEqual(create_vmr.add_type_fallbacks({}, [("X@AA", None, "X")]), {"X": ["X@AA"]})
+
+    def test_a_plain_model_wins_over_the_fallback(self):
+        # whatever order the liveries come in
+        liveries = [("F14@IR", None, "F14"), ("F14", "", "F14"), ("A359AIB", "AIB", "A359"), ("A359ZZZ", None, "A359"), ("A359", "", "A359")]
+        self.assertEqual(create_vmr.type_fallbacks(liveries), {})
+
+    def test_manufacturer_codes(self):
+        for code in ("AIB", "BOE", "ATR", "ADB", "ILF", "BAE", "ECF", "EMB", "BBA"):
+            self.assertIn(code, create_vmr.MANUFACTURER_CODES)
+        for code in ("DLH", "KLM", "ZZZ", ""):
+            self.assertNotIn(code, create_vmr.MANUFACTURER_CODES)
 
 
 class GroupRulesTest(unittest.TestCase):

@@ -75,7 +75,7 @@ LIVERIES = {
     ],
     "IVAO_F14": [
         livery("F14@UN", "@UN", "F14", "United States Navy 'SD' (USN)", 107),
-        livery("F14@IR", "@IR", "F14", "Iran Air Force", 108),                      # left out
+        livery("F14@IR", "@IR", "F14", "Iran Air Force", 108),                      # no code; the F14 has no plain model: fallback
     ],
     "IVAO_HAR": [
         livery("HARRN", "RN", "HAR", "Royal Navy", 113),                            # 2-letter texture: left out
@@ -85,6 +85,14 @@ LIVERIES = {
         livery("A388UAE", "UAE", "A388", "Emirates (UAE)", 118),
         livery("A388UAE2", "UAE2", "A388", "Emirates (UAE) (NBA)", 119),            # airline code in an earlier bracket
     ],
+    "IVAO_A359": [
+        livery("A359DLH", "DLH", "A359", "Lufthansa (DLH)", 121),
+        livery("A359AIB", "AIB", "A359", "Airbus Industries (AIB)", 122),           # house livery: AIB rule and the fallback of the A359
+    ],
+    "IVAO_H25B": [
+        livery("H25BABC", "ABC", "H25B", "Abc Jets (ABC)", 123),
+        livery("H25BZZZ", "ZZZ", "H25B", "Hawker 800 (White)", 124),                 # white, named after the aircraft: plain model, type-only
+    ],
     "IVAO_ZZZZ": [
         livery("ZZZZSHP", "SHP", "ZZZZ", "Blimp IVAO 25th Anniversary", 114),       # type ZZZZ: type-only
         livery("ZZZZHAB", "HAB", "ZZZZ", "IVAO Hot Air Balloon", 115),
@@ -92,7 +100,9 @@ LIVERIES = {
     ],
 }
 ALL_TITLES = [entry["title"] for entries in LIVERIES.values() for entry in entries]
-LEFT_OUT = {"B737ZZZ", "F14@IR", "HARRN", "ZZZZ"}
+LEFT_OUT = {"B737ZZZ", "HARRN", "ZZZZ"}
+# the type-only fallback rules of the types without a plain model (see type_fallbacks in create_vmr.py)
+FALLBACKS = {"F14": ("F14@IR",), "A359": ("A359AIB",)}
 
 
 def make_mtl(root, version_bug=True):

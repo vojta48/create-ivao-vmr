@@ -683,6 +683,14 @@
 
   // The card of one livery: its picture, id (with a link to the MTL catalog), name and type. The library's cards
   // add the livery to the selected rule when clicked; the preview on the presets step has no click action.
+  // Which MTL rule a livery is in: its airline's rule, the type-only rule of the plain model, the type-only
+  // fallback rule of a type without a plain model (see type_fallbacks in create_vmr.py), or none.
+  function liveryRuleText(livery) {
+    if (!livery.inVmr) return "no airline code or invisible model, not in the MTL rules";
+    if (livery.fallback) return (livery.airline ? livery.airline + ", and the " : "") + "fallback for every " + livery.type + " without a livery of its airline (type-only rule)";
+    return livery.airline || "any airline (type-only rule)";
+  }
+
   function liveryCard(livery, onclick) {
     const card = el("div", { class: "card", title: onclick ? "Add " + livery.id + " to the selected rule" : livery.id });
     if (onclick) card.addEventListener("click", onclick);
@@ -694,7 +702,7 @@
       el("div", { class: "head" }, el("div", { class: "id" }, livery.id), link),
       el("div", { class: "name" + (livery.standard ? "" : " special") }, livery.name || livery.model),
       el("div", { class: "meta" }, livery.type + " · " +
-        (!livery.inVmr ? "no airline code or invisible model, not in the MTL rules" : livery.airline || "any airline (type-only rule)") +
+        liveryRuleText(livery) +
         (livery.standard ? "" : " · special livery"))
     );
     return card;

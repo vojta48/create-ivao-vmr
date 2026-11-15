@@ -153,7 +153,8 @@ class OutputTest(TempDirTestCase):
         self.assertIn("Processed: %d textures." % len(support.ALL_TITLES), self.printed)
         self.assertIn("Special liveries left out: 2.", self.printed)  # A320AAF2, A388UAE2
         self.assertIn("Special liveries kept because the airline has no standard livery for that aircraft type: 1.", self.printed)
-        self.assertIn("no airline code a callsign can start with (ZZZ, military \"@\" codes) or because they are the invisible model: 4.", self.printed)
+        self.assertIn("no airline code a callsign can start with (ZZZ, military \"@\" codes) and their type has a plain model, or because they are the invisible model: 3.", self.printed)
+        self.assertIn("Type-only fallback rules for aircraft types without a plain model: 2 (1 with the manufacturer's house livery, 1 with liveries that have no airline code).", self.printed)
 
     def test_every_livery_is_read(self):
         self.assertEqual(sorted(self.script.livery_info), sorted(support.ALL_TITLES))
@@ -166,6 +167,9 @@ class VerboseTest(TempDirTestCase):
         _, printed = run_script(mtl / "SimObjects" / "Airplanes", self.tmp / "o", verbose=True)
         for title in LEFT_OUT:
             self.assertIn("No airline code, left out: " + title + " (", printed)
+        self.assertNotIn("left out: F14@IR", printed)
+        self.assertIn("Fallback for type F14 (no plain model): F14@IR", printed)
+        self.assertIn("Fallback for type A359 (no plain model): A359AIB", printed)
         self.assertIn("Special livery: A320AAF2 (Aigle Azur (old) (AAF))", printed)
         self.assertIn("Created rule for airline DLA type F100", printed)
 
