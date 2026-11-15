@@ -98,19 +98,27 @@ The Documents folder is often moved into OneDrive or has a translated name (`Dok
   - files that are UTF-8 with a BOM, or cp1252.
 - Special airline codes:
   - `default`, `white` or `blank` texture or no texture: the plain model, which becomes a **type-only** rule.
-    So does a livery with a generic catalog name and no code ("Default", "White (Blank)", "General Aviation"),
-    whatever its texture (`SR22ZZZ` = "Default" is the plain SR22). See `PLAIN_TEXTURES` / `is_plain_model_name`.
+    So does a livery with a generic catalog name and no code ("Default", "White (Blank)", "General Aviation",
+    "House Colors", or an aircraft name with only "(White)" / "(Blank)" after it: "Hawker 800 (White)"), whatever
+    its texture (`SR22ZZZ` = "Default" is the plain SR22). See `PLAIN_TEXTURES` / `is_plain_model_name`.
+  - **Fallback of a type without a plain model** (`type_fallbacks` / `add_type_fallbacks`, used by both the script
+    and `Library._model_list`): the type-only rule gets the manufacturer's house liveries (`MANUFACTURER_CODES`: AIB,
+    BOE, ATR, ...; they keep their airline rule too), or else the type's liveries without a usable code (ZZZ, `@xx`).
+    Without it, an aircraft whose airline has no livery of that type is vPilot's default aircraft, although the MTL has
+    the type (Vojta's KLM A359: the MTL has no KLM A350 and no white A350, but `A359AIB`). A type with only airline
+    liveries gets no fallback: another airline's livery is never used. The GUI marks these liveries `fallback: true`
+    and counts them as `inVmr`. Only 86 of ~290 types have a plain model, so this adds ~120 type-only rules.
   - Texture equal to the type (`HAR` for "AV-8 Harrier") with no catalog code: the plain model, **type-only**.
   - Type `ZZZZ` (blimp, balloon): **type-only**. The invisible dummy (texture `dummy`, "No Model (Invisible)")
     is **left out**, so vPilot never picks it at random.
   - A name with the airline code in an earlier bracket ("Emirates (UAE) (NBA)"): the earlier code that the
     texture starts with wins.
-  - `ZZZ` (no airline) and `@xx` (military/government): **left out** of the VMR, unless the catalog name gives a real code such as `(USN)`. The GUI still lists them (`inVmr: false`).
+  - `ZZZ` (no airline) and `@xx` (military/government): **left out** of the VMR, unless the catalog name gives a real code such as `(USN)`, or their type has no plain model (then they are its fallback, see above). The GUI still lists them (`inVmr: false`).
 
 ## Invariants: do not break these
 
 1. **The script and the GUI generate identical rules.** The logic lives once, in `create_vmr.py`:
-   `mtl_airline_code`, `mtl_type_code`, `is_standard_livery`, `group_rules`, `xml_attr`.
+   `mtl_airline_code`, `mtl_type_code`, `is_standard_livery`, `type_fallbacks`, `add_type_fallbacks`, `group_rules`, `xml_attr`.
    `vmr_gui.Library` must call these and must not reimplement them. `tests/test_parity.py` enforces this.
 2. **`create_vmr.py` stays a single standalone file** that runs with any Python 3 standard library.
    The GUI may depend on `pywebview`. Nothing else may be added as a runtime dependency.

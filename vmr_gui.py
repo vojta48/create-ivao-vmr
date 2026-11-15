@@ -50,7 +50,7 @@ from pathlib import Path
 
 # The rules that turn the liveries into a VMR (airline code, aircraft type, standard or special livery,
 # grouping) are shared with create_vmr.py, so the GUI and the script produce the same VMRs.
-from create_vmr import group_rules, is_standard_livery, mtl_airline_code, mtl_type_code, xml_attr
+from create_vmr import INVISIBLE_TEXTURE, add_type_fallbacks, group_rules, is_standard_livery, mtl_airline_code, mtl_type_code, xml_attr
 
 # When packed into an .exe with PyInstaller (see build_exe.spec), the gui and presets folders are bundled
 # inside the executable and unpacked to a temporary folder (sys._MEIPASS).
@@ -268,6 +268,7 @@ class Library:
         self.models_root = Path(models_root) if models_root else None
         self.airplanes = self.models_root / "SimObjects" / "Airplanes" if self.models_root else None
         self.liveries = {}
+        self._codes = {}  # the airline code of each livery as mtl_airline_code gives it (None: no usable code)
         self.errors = []
         self.catalog_ids = {}
         self.scanned = False
@@ -279,6 +280,7 @@ class Library:
 
     def scan(self):
         self.liveries = {}
+        self._codes = {}
         self.errors = []
         self.catalog_ids = read_mtl_dat(self.models_root / MTL_DAT_FILE) if self.models_root else {}
         if self.found():
@@ -289,8 +291,22 @@ class Library:
                 if cfg.is_file():
                     self._read_cfg(model_dir, cfg)
                 self.progress["done"] += 1
+        self._mark_fallbacks()
         self.scanned = True
         return self
+
+    def _mark_fallbacks(self):
+        """Marks the liveries that are the type-only fallback of a type without a plain model (see
+        type_fallbacks in create_vmr.py). They are in the MTL rules even without an airline code."""
+        fallbacks = add_type_fallbacks({}, self._livery_rows())
+        in_fallback = {title for titles in fallbacks.values() for title in titles}
+        for livery in self.liveries.values():
+            livery["fallback"] = livery["id"] in in_fallback
+            livery["inVmr"] = self._codes[livery["id"]] is not None or livery["fallback"]
+
+    def _livery_rows(self):
+        """The liveries as (MTL id, airline code or None, type), in MTL order, without the invisible model."""
+        return [(l["id"], self._codes[l["id"]], l["type"]) for l in self.liveries.values() if l["texture"].lower() != INVISIBLE_TEXTURE]
 
     def _read_cfg(self, model_dir, cfg):
         # texture="TVS" in aircraft.cfg means the folder texture.TVS, but Windows does not care about case
@@ -329,12 +345,15 @@ class Library:
             texture = _unquote(entry.get("texture", ""))
             name = _unquote(entry.get("ui_variation", ""))
             airline = mtl_airline_code(texture, name, type_code)
+            self._codes[title] = airline
             self.liveries[title] = {
                 "id": title,
                 "airline": airline or "",
                 # False for liveries without an airline code a callsign can start with (ZZZ, "@xx"): the rules
-                # generated from the MTL leave them out (see mtl_airline_code in create_vmr.py).
+                # generated from the MTL leave them out (see mtl_airline_code in create_vmr.py), unless they are
+                # the fallback of their type (see _mark_fallbacks, which sets inVmr and fallback at the end of the scan).
                 "inVmr": airline is not None,
+                "fallback": False,
                 "type": type_code,
                 "texture": texture,
                 "name": name,
@@ -350,8 +369,10 @@ class Library:
         """The liveries in the form create_vmr.py groups them: model_list[airline][type] = [MTL ids]."""
         model_list = {}
         for livery in self.liveries.values():
-            if livery["type"] and livery["inVmr"]:
+            if livery["type"] and self._codes[livery["id"]] is not None:
                 model_list.setdefault(livery["airline"], {}).setdefault(livery["type"], []).append(livery["id"])
+        # the type-only fallback rules of the types without a plain model, like create_vmr.py adds them
+        add_type_fallbacks(model_list, self._livery_rows())
         return model_list
 
     def _special(self):

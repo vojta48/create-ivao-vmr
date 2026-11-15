@@ -32,6 +32,8 @@ fixed_files = []
 special_titles = set()
 # Every livery read from the MTL: livery_info[title] = (airline code or None, type, texture, name, standard)
 livery_info = {}
+# The type-only fallback rules of the types without a plain model: fallback_rules[type] = [titles] (see type_fallbacks)
+fallback_rules = {}
 special_skipped = 0
 special_kept = 0
 model_list_len = 0
@@ -162,16 +164,21 @@ NO_AIRLINE = "ZZZ"
 #   All of these are the plain model of their type and get the type-only rule; without it, "white" and "blank"
 #   would become the callsigns WHI and BLA (Blue Air!), and the ZZZ ones would be left out, so an SR22 without an
 #   airline rule would show nothing although the MTL has a default SR22.
+#   A white livery named after the aircraft ("Hawker 800 (White)", "Learjet 35 (White)", "Citation Longitude
+#   (White)") or after the manufacturer's house colours ("House Colors") with no airline code is the plain model too.
 INVISIBLE_TEXTURE = "dummy"
 PLAIN_TEXTURES = ("", "default", "white", "blank")
-PLAIN_NAMES = ("default", "white", "blank", "general aviation")
+PLAIN_NAMES = ("default", "white", "blank", "general aviation", "house colors", "house colours", "house livery")
 PLAIN_QUALIFIERS = ("white", "blank")
 
 def is_plain_model_name(ui_variation):
     """True for a catalog name that only says the livery is the plain model: "Default", "White (Blank)",
-    "General Aviation (Blank)". A name with an airline code is never one."""
+    "General Aviation (Blank)", "House Colors", or any aircraft name with only "(White)" / "(Blank)" after it
+    ("Hawker 800 (White)"). A name with an airline code or a registration is never one."""
     base, qualifiers, code = livery_name_parts(ui_variation)
-    return code == "" and base.lower() in PLAIN_NAMES and all(q.strip().lower() in PLAIN_QUALIFIERS for q in qualifiers)
+    if code != "" or not all(q.strip().lower() in PLAIN_QUALIFIERS for q in qualifiers):
+        return False
+    return base.lower() in PLAIN_NAMES or len(qualifiers) > 0
 
 def mtl_airline_code(texture_name, ui_variation, type_code=""):
     texture = texture_name.strip().strip("\"")
@@ -194,6 +201,55 @@ def mtl_airline_code(texture_name, ui_variation, type_code=""):
 # The aircraft type of an IVAO MTL livery: the first four characters of ui_type ("A320", "B38M", "F14").
 def mtl_type_code(ui_type):
     return ui_type.strip().strip("\"")[:4].strip().upper()
+
+# The fallback model of an aircraft type that has no plain model.
+#
+# vPilot looks for a rule in four passes: callsign prefix and type, prefix and a similar type, type only,
+# similar type only. Without a type-only rule, an aircraft whose airline has no livery of that type in the
+# MTL (a KLM A350 when the MTL has no KLM A350) ends up as vPilot's default aircraft, although the MTL has the
+# type. The plain model of a type gives it a type-only rule (see mtl_airline_code), but most types have no
+# plain model. For those, the type-only rule gets the next best thing, in this order:
+#   1. the manufacturer's house livery, which is as good as a white model: "Airbus Industries (AIB)",
+#      "Boeing Commercial Group (BOE)", "House Livery (ATR)". These liveries keep their own airline rule too.
+#   2. otherwise, the liveries of the type that have no usable airline code and are therefore in no other
+#      rule (ZZZ private and government aircraft, "@xx" military). The right type in someone else's colours
+#      is still closer than a different aircraft.
+# A type with neither is left to vPilot's default aircraft. An airline's own liveries are never used as the
+# fallback for other airlines. The invisible model is never a fallback.
+# The type-only rule is only used when no rule with the callsign prefix fits, so it cannot take over a rule
+# of an airline, a preset or the user's own rules.
+MANUFACTURER_CODES = ("AIB", "BOE", "EMB", "BBA", "ATR", "EVX", "ADB", "ILF", "BAE", "ECF")
+
+def type_fallbacks(liveries):
+    """The fallback liveries per type: {type: [MTL ids]} for every type without a plain model. liveries is an
+    iterable of (MTL id, airline code as mtl_airline_code gives it, type), in the order of the MTL."""
+    plain = set()
+    house = defaultdict(list)
+    no_code = defaultdict(list)
+    for title, airline, type in liveries:
+        if airline == "":
+            plain.add(type)
+        elif airline is None:
+            no_code[type].append(title)
+        elif airline in MANUFACTURER_CODES:
+            house[type].append(title)
+    fallbacks = {}
+    for type in list(house) + list(no_code):
+        if type in plain or type in fallbacks:
+            continue
+        fallbacks[type] = house[type] if type in house else no_code[type]
+    return fallbacks
+
+def add_type_fallbacks(model_list, liveries):
+    """Adds the type-only rule of each type without a plain model to model_list (see type_fallbacks) and
+    returns what was added. model_list is model_list[airline][type] = [MTL ids], as create_model_list builds it.
+    The invisible model must not be in liveries."""
+    fallbacks = type_fallbacks(liveries)
+    type_only = model_list.setdefault("", {})
+    for type, titles in fallbacks.items():
+        if type not in type_only:
+            type_only[type] = list(titles)
+    return fallbacks
 
 # Groups the liveries into rules: one rule per airline and aircraft type with all its liveries as alternatives.
 # model_list[airline][type] is the list of liveries (MTL ids) in the order they were found; special is the set of
@@ -224,7 +280,9 @@ def group_rules(model_list, special, standard_only):
 #   ui_variation="Lufthansa (Star Alliance) (DLH)"   -> an alternative livery
 # The last group in brackets is the airline code; every group before it describes what is special about the livery.
 # A livery without such a group is the standard livery. A few descriptions do not make a livery special: they only
-# say which engines or winglets the model has, or that it is the airline's new scheme. Those are listed below.
+# say which engines or winglets the model has, that it is the airline's new scheme, or that the livery is the white
+# one ("Hawker 800 (White)", "General Aviation (Blank)": the plain model is the standard of its type). Those are
+# listed below.
 #
 # If there is no ui_variation (older packages), the texture name decides instead: in the catalog the standard
 # livery has no number (A320EWG = Eurowings, A320EWG2 = Eurowings Europa Park), and the texture name in the
@@ -233,6 +291,7 @@ NEUTRAL_QUALIFIERS = re.compile(
     r"^(cfm|iae|pw|p&w|pratt ?& ?whitney|rr|rolls[ -]?royce|ge|trent|leap|neo|ceo)( engines?)?$"
     r"|^(nc|new( colou?rs| livery| scheme)?|current( colou?rs| livery)?)$"
     r"|^(wl|(blended |split |scimitar )?winglets|sharklets)$"
+    r"|^(white|blank)$"
 )
 
 def livery_name_parts(ui_variation):
@@ -377,16 +436,31 @@ def create_model_list():
                         special_titles.add(texture_title)
                         if verbose: print("  Special livery: " + texture_title + " (" + ui_variation.strip("\"") + ")")
                     if callsign_prefix is None:
-                        global no_code_len
-                        no_code_len = no_code_len + 1
-                        if verbose: print("  No airline code, left out: " + texture_title + " (" + ui_variation.strip("\"") + ")")
                         continue
                 try:
                     model_list[callsign_prefix][acf_type].append(texture_title)
                 except:
                     model_list[callsign_prefix][acf_type] = [texture_title]
 
+    if lib == "ivao":
+        add_fallback_rules(model_list)
     return model_list
+
+# Gives every type without a plain model its type-only fallback rule (see type_fallbacks) and counts the
+# liveries that are still left out of the VMR.
+def add_fallback_rules(model_list):
+    global fallback_rules, no_code_len
+    # the invisible model is never a fallback
+    liveries = [(title, info[0], info[1]) for title, info in livery_info.items() if info[2].lower() != INVISIBLE_TEXTURE]
+    fallback_rules = add_type_fallbacks(model_list, liveries)
+    in_fallback = {title for titles in fallback_rules.values() for title in titles}
+    for title, info in livery_info.items():
+        if info[0] is None and title not in in_fallback:
+            no_code_len = no_code_len + 1
+            if verbose: print("  No airline code, left out: " + title + " (" + info[3] + ")")
+    if verbose:
+        for type in fallback_rules:
+            print("  Fallback for type " + type + " (no plain model): " + "//".join(fallback_rules[type]))
 
 # Goes through the models_list and writes the rules to the output file.
 # Some airlines have multiple available textures for a single type. These are combined into one entry and the ModelNames are separated with "//"
@@ -446,8 +520,11 @@ def main():
         print("  Special liveries left out: " + str(special_skipped) + ".")
         if special_kept > 0:
             print("  Special liveries kept because the airline has no standard livery for that aircraft type: " + str(special_kept) + ".")
+        if len(fallback_rules) > 0:
+            house = sum(1 for titles in fallback_rules.values() if livery_info[titles[0]][0] in MANUFACTURER_CODES)
+            print("Type-only fallback rules for aircraft types without a plain model: " + str(len(fallback_rules)) + " (" + str(house) + " with the manufacturer's house livery, " + str(len(fallback_rules) - house) + " with liveries that have no airline code). Run the script with -v to see them.")
         if no_code_len > 0:
-            print("Liveries left out of both VMRs because they have no airline code a callsign can start with (ZZZ, military \"@\" codes) or because they are the invisible model: " + str(no_code_len) + ". Run the script with -v to see them.")
+            print("Liveries left out of both VMRs because they have no airline code a callsign can start with (ZZZ, military \"@\" codes) and their type has a plain model, or because they are the invisible model: " + str(no_code_len) + ". Run the script with -v to see them.")
     if(len(fixed_files) != 0):
         print("\n\nSome aircraft.cfg files had a broken \"VERSION]\" section header. It was fixed to \"[VERSION]\" so the file could be read:")
         for file in fixed_files:

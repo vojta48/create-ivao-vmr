@@ -28,12 +28,27 @@ class LibraryTest(TempDirTestCase):
     def test_livery_fields(self):
         l = self.library.liveries["F100DLA"]
         self.assertEqual(l, {"id": "F100DLA", "airline": "DLA", "inVmr": True, "type": "F100", "texture": "DAL",
-                             "name": "Air Dolomiti (DLA)", "model": "IVAO_F100", "standard": True, "catalogId": 101})
+                             "name": "Air Dolomiti (DLA)", "model": "IVAO_F100", "standard": True, "catalogId": 101, "fallback": False})
         self.assertFalse(self.library.liveries["A320AAF2"]["standard"])
         self.assertEqual(self.library.liveries["B737"]["airline"], "")
         for title in LEFT_OUT:
             self.assertFalse(self.library.liveries[title]["inVmr"], title)
             self.assertEqual(self.library.liveries[title]["airline"], "")
+            self.assertFalse(self.library.liveries[title]["fallback"], title)
+
+    def test_fallback_liveries(self):
+        # no airline code, but the F14 has no plain model: in the MTL rules as the fallback of the type
+        self.assertEqual(self.library.liveries["F14@IR"]["airline"], "")
+        self.assertTrue(self.library.liveries["F14@IR"]["inVmr"])
+        self.assertTrue(self.library.liveries["F14@IR"]["fallback"])
+        # the house livery keeps its airline and is the fallback as well
+        self.assertEqual(self.library.liveries["A359AIB"]["airline"], "AIB")
+        self.assertTrue(self.library.liveries["A359AIB"]["fallback"])
+        self.assertFalse(self.library.liveries["A359DLH"]["fallback"])
+        # a plain model is a type-only rule in its own right, not a fallback
+        self.assertEqual(self.library.liveries["H25BZZZ"]["airline"], "")
+        self.assertFalse(self.library.liveries["H25BZZZ"]["fallback"])
+        self.assertFalse(self.library.liveries["B737"]["fallback"])
 
     def test_catalog_numbers(self):
         self.assertEqual(self.library.liveries["C172"]["catalogId"], 9999)  # from mtl.dat, no ivao.ini
