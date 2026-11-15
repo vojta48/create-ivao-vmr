@@ -280,7 +280,7 @@ class Library:
 
     def scan(self):
         self.liveries = {}
-        self._codes = {}  # the airline code of each livery as mtl_airline_code gives it (None: no usable code)
+        self._codes = {}
         self.errors = []
         self.catalog_ids = read_mtl_dat(self.models_root / MTL_DAT_FILE) if self.models_root else {}
         if self.found():
