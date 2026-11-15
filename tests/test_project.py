@@ -57,6 +57,11 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("RYR", "A320")], "ryanair_group.vmr")
         self.assertNotIn(("SWR", "BCS3"), seen)  # the MTL generates it itself
         self.assertEqual(seen[("TAM", "B789")], "latam_group.vmr")
+        self.assertEqual(seen[("SWR", "E190")], "lufthansa_group.vmr")  # moved out of extra_rules
+        self.assertEqual(seen[("EDW", "BCS3")], "lufthansa_group.vmr")
+        self.assertEqual(seen[("FDX", "AT72")], "fedex_group.vmr")
+        self.assertEqual(seen[("MAL", "B752")], "fedex_group.vmr")
+        self.assertEqual(seen[("DHA", "B752")], "dhl_group.vmr")
 
 
 class LicenseFilesTest(unittest.TestCase):

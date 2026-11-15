@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- FedEx group: FedEx Feeder ATRs (FDX callsign) in the Empire Airlines and Mountain Air Cargo liveries, ASL Airlines Belgium 737s flown for FedEx in Europe, and the feeder airlines (Morningstar, Empire, Mountain Air Cargo, Wiggins, CSA Air, West Air, Corporate Air) on FedEx 757s and Caravans. -->
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="AT43" ModelName="AT43CFS" />
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="AT72" ModelName="AT72MTN" />
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="AT73" ModelName="AT73CFS" />
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="AT76" ModelName="AT76CFS" />
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="B734" ModelName="B734TAY3" />
+<ModelMatchRule CallsignPrefix="FDX" TypeCode="B738" ModelName="B738TAYWL2" />
+<ModelMatchRule CallsignPrefix="MAL" TypeCode="B752" ModelName="B752FDX" />
+<ModelMatchRule CallsignPrefix="MAL" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="CFS" TypeCode="AT72" ModelName="AT72MTN" />
+<ModelMatchRule CallsignPrefix="CFS" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="MTN" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="WIG" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="IRO" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="PCM" TypeCode="C208" ModelName="C208FDX" />
+<ModelMatchRule CallsignPrefix="CPT" TypeCode="C208" ModelName="C208FDX" />
+</ModelMatchRuleSet>
