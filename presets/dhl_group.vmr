@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- DHL group: DHL operators without a livery of their own in the MTL get the DHL colours of DHL Air UK and EAT Leipzig: DHL Air Austria (DHA), DHL Aero Expreso (DAE) and DHL Bahrain (DHX) 757s and 767s, Air Hong Kong (AHK) A330 freighters. -->
+<ModelMatchRule CallsignPrefix="DHA" TypeCode="B752" ModelName="B752DHK" />
+<ModelMatchRule CallsignPrefix="DHA" TypeCode="B763" ModelName="B763DHKWL" />
+<ModelMatchRule CallsignPrefix="DAE" TypeCode="B752" ModelName="B752DHK" />
+<ModelMatchRule CallsignPrefix="DAE" TypeCode="B763" ModelName="B763DHKWL" />
+<ModelMatchRule CallsignPrefix="DHX" TypeCode="B752" ModelName="B752DHK" />
+<ModelMatchRule CallsignPrefix="AHK" TypeCode="A332" ModelName="A332BCS" />
+<ModelMatchRule CallsignPrefix="AHK" TypeCode="A333" ModelName="A333BCS" />
+</ModelMatchRuleSet>

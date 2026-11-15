@@ -61,6 +61,7 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("EDW", "BCS3")], "lufthansa_group.vmr")
         self.assertEqual(seen[("FDX", "AT72")], "fedex_group.vmr")
         self.assertEqual(seen[("MAL", "B752")], "fedex_group.vmr")
+        self.assertEqual(seen[("DHA", "B752")], "dhl_group.vmr")
 
 
 class LicenseFilesTest(unittest.TestCase):
