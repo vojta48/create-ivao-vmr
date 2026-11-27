@@ -202,6 +202,20 @@ class TypeFallbacksTest(unittest.TestCase):
         liveries = [("F14@IR", None, "F14"), ("F14", "", "F14"), ("A359AIB", "AIB", "A359"), ("A359ZZZ", None, "A359"), ("A359", "", "A359")]
         self.assertEqual(create_vmr.type_fallbacks(liveries), {})
 
+    def test_civil_liveries_win_over_military_ones(self):
+        # Vojta's NetJets Gulfstream: the GLF3 has two US Air Force liveries and one private one. The private one is
+        # the fallback; the military ones would show a business jet as a C-20 two times out of three.
+        liveries = [("GLF3@UL", None, "GLF3"), ("GLF3@UL2", None, "GLF3"), ("GLF3ZZZ", None, "GLF3"),
+                    ("P180@IT", None, "P180"), ("P180ZZZ", None, "P180"), ("P180IAM", "IAM", "P180"),
+                    ("F14@UN", "USN", "F14"), ("F14@IR", None, "F14")]
+        self.assertEqual(create_vmr.type_fallbacks(liveries), {
+            "GLF3": ["GLF3ZZZ"],
+            "P180": ["P180ZZZ"],
+            "F14": ["F14@IR"],  # only military liveries: still the fallback
+        })
+        # a house livery still wins over both
+        self.assertEqual(create_vmr.type_fallbacks([("X@AA", None, "X"), ("XZZZ", None, "X"), ("XBOE", "BOE", "X")]), {"X": ["XBOE"]})
+
     def test_manufacturer_codes(self):
         for code in ("AIB", "BOE", "ATR", "ADB", "ILF", "BAE", "ECF", "EMB", "BBA"):
             self.assertIn(code, create_vmr.MANUFACTURER_CODES)

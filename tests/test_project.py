@@ -62,6 +62,7 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("FDX", "AT72")], "fedex_group.vmr")
         self.assertEqual(seen[("MAL", "B752")], "fedex_group.vmr")
         self.assertEqual(seen[("DHA", "B752")], "dhl_group.vmr")
+        self.assertEqual(seen[("NJE", "GLEX")], "netjets_group.vmr")  # NetJets Europe Global: was white, or a CRJ7 with FSLTL
 
 
 class LicenseFilesTest(unittest.TestCase):
