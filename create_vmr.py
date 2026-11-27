@@ -213,12 +213,18 @@ def mtl_type_code(ui_type):
 #      "Boeing Commercial Group (BOE)", "House Livery (ATR)". These liveries keep their own airline rule too.
 #   2. otherwise, the liveries of the type that have no usable airline code and are therefore in no other
 #      rule (ZZZ private and government aircraft, "@xx" military). The right type in someone else's colours
-#      is still closer than a different aircraft.
+#      is still closer than a different aircraft. When the type has civil ones (no "@" in the MTL id), the
+#      military ones are left out of it: a NetJets or private Gulfstream III should look like the private
+#      "Gulfstream G-III" (GLF3ZZZ), not two times out of three like a US Air Force C-20 (GLF3@UL, GLF3@UL2).
+#      The same goes for the Piaggio P180 (one private livery, eight Italian military and police ones) and
+#      the PC-12. A type with only military liveries (F-14) still gets them all.
 # A type with neither is left to vPilot's default aircraft. An airline's own liveries are never used as the
 # fallback for other airlines. The invisible model is never a fallback.
 # The type-only rule is only used when no rule with the callsign prefix fits, so it cannot take over a rule
 # of an airline, a preset or the user's own rules.
 MANUFACTURER_CODES = ("AIB", "BOE", "EMB", "BBA", "ATR", "EVX", "ADB", "ILF", "BAE", "ECF")
+# The MTL ids (and textures) of military and government liveries have an "@" with the country: GLF3@UL, P180@IT.
+MILITARY_MARK = "@"
 
 def type_fallbacks(liveries):
     """The fallback liveries per type: {type: [MTL ids]} for every type without a plain model. liveries is an
@@ -237,7 +243,11 @@ def type_fallbacks(liveries):
     for type in list(house) + list(no_code):
         if type in plain or type in fallbacks:
             continue
-        fallbacks[type] = house[type] if type in house else no_code[type]
+        if type in house:
+            fallbacks[type] = house[type]
+        else:
+            civil = [title for title in no_code[type] if MILITARY_MARK not in title]
+            fallbacks[type] = civil if len(civil) > 0 else no_code[type]
     return fallbacks
 
 def add_type_fallbacks(model_list, liveries):
@@ -524,7 +534,7 @@ def main():
             house = sum(1 for titles in fallback_rules.values() if livery_info[titles[0]][0] in MANUFACTURER_CODES)
             print("Type-only fallback rules for aircraft types without a plain model: " + str(len(fallback_rules)) + " (" + str(house) + " with the manufacturer's house livery, " + str(len(fallback_rules) - house) + " with liveries that have no airline code). Run the script with -v to see them.")
         if no_code_len > 0:
-            print("Liveries left out of both VMRs because they have no airline code a callsign can start with (ZZZ, military \"@\" codes) and their type has a plain model, or because they are the invisible model: " + str(no_code_len) + ". Run the script with -v to see them.")
+            print("Liveries left out of both VMRs because they have no airline code a callsign can start with (ZZZ, military \"@\" codes) and their type has a plain model (or, for military ones, a private livery as its fallback), or because they are the invisible model: " + str(no_code_len) + ". Run the script with -v to see them.")
     if(len(fixed_files) != 0):
         print("\n\nSome aircraft.cfg files had a broken \"VERSION]\" section header. It was fixed to \"[VERSION]\" so the file could be read:")
         for file in fixed_files:

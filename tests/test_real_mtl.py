@@ -70,6 +70,18 @@ class RealMtlTest(unittest.TestCase):
             if livery["inVmr"] and livery["airline"] in create_vmr.MANUFACTURER_CODES:
                 self.assertIn(livery["type"], type_only, livery["id"])
 
+    def test_business_jets_have_a_civil_type_only_rule(self):
+        # Vojta's NetJets Europe Global: every business jet type of the MTL has a type-only rule, and a type whose
+        # fallback could be a private or a military livery never gets the military one (GLF3: not the USAF C-20s)
+        rules = {(p, t): m for p, t, m in gui_rules(self.library, False)}
+        types = {l["type"] for l in self.library.liveries.values()}
+        for type_code in ("GLEX", "GLF4", "GLF5", "GLF6", "CL30", "CL35", "CL60", "C25C", "C750", "E55P", "FA7X", "LJ45", "PC12", "PC24"):
+            if type_code in types:
+                self.assertIn(("", type_code), rules, type_code)
+        for (prefix, type_code), models in rules.items():
+            if prefix == "" and "@" in models and any("@" not in m and self.library.liveries[m]["fallback"] for m in models.split("//")):
+                self.fail("military liveries in the fallback of %s: %s" % (type_code, models))
+
     def test_every_livery_has_a_catalog_number(self):
         self.assertEqual([l["id"] for l in self.library.liveries.values() if not l["catalogId"]], [])
 

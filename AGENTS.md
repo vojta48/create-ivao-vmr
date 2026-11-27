@@ -103,7 +103,8 @@ The Documents folder is often moved into OneDrive or has a translated name (`Dok
     its texture (`SR22ZZZ` = "Default" is the plain SR22). See `PLAIN_TEXTURES` / `is_plain_model_name`.
   - **Fallback of a type without a plain model** (`type_fallbacks` / `add_type_fallbacks`, used by both the script
     and `Library._model_list`): the type-only rule gets the manufacturer's house liveries (`MANUFACTURER_CODES`: AIB,
-    BOE, ATR, ...; they keep their airline rule too), or else the type's liveries without a usable code (ZZZ, `@xx`).
+    BOE, ATR, ...; they keep their airline rule too), or else the type's liveries without a usable code (ZZZ, `@xx`; the military `@` ones only when the type has no civil one,
+    `MILITARY_MARK`, so GLF3 falls back to the private GLF3ZZZ, not the USAF C-20s).
     Without it, an aircraft whose airline has no livery of that type is vPilot's default aircraft, although the MTL has
     the type (Vojta's KLM A359: the MTL has no KLM A350 and no white A350, but `A359AIB`). A type with only airline
     liveries gets no fallback: another airline's livery is never used. The GUI marks these liveries `fallback: true`

@@ -93,6 +93,10 @@ LIVERIES = {
         livery("H25BABC", "ABC", "H25B", "Abc Jets (ABC)", 123),
         livery("H25BZZZ", "ZZZ", "H25B", "Hawker 800 (White)", 124),                 # white, named after the aircraft: plain model, type-only
     ],
+    "IVAO_GLF3": [
+        livery("GLF3@UL", "@UL", "GLF3", "United States Air Force (C-20B)", 125),   # military, and the type has a civil no-code livery: left out
+        livery("GLF3ZZZ", "ZZZ", "GLF3", "Gulfstream G-III", 126),                  # no code, no plain model: the civil fallback
+    ],
     "IVAO_ZZZZ": [
         livery("ZZZZSHP", "SHP", "ZZZZ", "Blimp IVAO 25th Anniversary", 114),       # type ZZZZ: type-only
         livery("ZZZZHAB", "HAB", "ZZZZ", "IVAO Hot Air Balloon", 115),
@@ -100,9 +104,9 @@ LIVERIES = {
     ],
 }
 ALL_TITLES = [entry["title"] for entries in LIVERIES.values() for entry in entries]
-LEFT_OUT = {"B737ZZZ", "HARRN", "ZZZZ"}
+LEFT_OUT = {"B737ZZZ", "HARRN", "ZZZZ", "GLF3@UL"}
 # the type-only fallback rules of the types without a plain model (see type_fallbacks in create_vmr.py)
-FALLBACKS = {"F14": ("F14@IR",), "A359": ("A359AIB",)}
+FALLBACKS = {"F14": ("F14@IR",), "A359": ("A359AIB",), "GLF3": ("GLF3ZZZ",)}
 
 
 def make_mtl(root, version_bug=True):

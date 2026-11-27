@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelMatchRuleSet>
+<!-- NetJets group: NetJets Europe (NJE) flies the Phenom 300, Citation Latitude, Challenger 350 and 650 and Global 6000 and 7500 in the same colours as NetJets in the US (EJA). The MTL has a NetJets Europe livery only for the Challenger 350 and no Global 5000 or 7500 at all, so the Globals and the Challenger 650 get the NetJets (EJA) liveries; the Global 5000 and 7500 are shown as the NetJets Global 6000. The Phenom 300 and the Latitude have no NetJets livery: they are white (the Latitude as the white Citation Longitude, see the business_jets preset). -->
+<ModelMatchRule CallsignPrefix="NJE" TypeCode="GLEX" ModelName="GLEXEJA" />
+<ModelMatchRule CallsignPrefix="NJE" TypeCode="GL7T" ModelName="GLEXEJA" />
+<ModelMatchRule CallsignPrefix="NJE" TypeCode="GL5T" ModelName="GLEXEJA" />
+<ModelMatchRule CallsignPrefix="NJE" TypeCode="CL60" ModelName="CL65EJA" />
+<ModelMatchRule CallsignPrefix="EJA" TypeCode="GL7T" ModelName="GLEXEJA" />
+<ModelMatchRule CallsignPrefix="EJA" TypeCode="GL5T" ModelName="GLEXEJA" />
+</ModelMatchRuleSet>
