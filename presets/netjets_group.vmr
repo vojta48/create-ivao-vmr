@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
-<!-- NetJets group: NetJets Europe (NJE) flies the Global 6000 and the Challenger 650 in the same colours as NetJets in the US (EJA), but the MTL has a NetJets Europe livery only for the Challenger 350. Without these rules a NetJets Europe Global shows up white (or as another aircraft, when an FSLTL rule file is above the MTL rules in vPilot). -->
+<!-- NetJets group: NetJets Europe (NJE) flies the Phenom 300, Citation Latitude, Challenger 350 and 650 and Global 6000 and 7500 in the same colours as NetJets in the US (EJA). The MTL has a NetJets Europe livery only for the Challenger 350 and no Global 7500 at all, so the Globals and the Challenger 650 get the NetJets (EJA) liveries; the Global 7500 is shown as the NetJets Global 6000. The Phenom 300 (white) and the Latitude (not in the MTL) have no NetJets livery. -->
 <ModelMatchRule CallsignPrefix="NJE" TypeCode="GLEX" ModelName="GLEXEJA" />
+<ModelMatchRule CallsignPrefix="NJE" TypeCode="GL7T" ModelName="GLEXEJA" />
 <ModelMatchRule CallsignPrefix="NJE" TypeCode="CL60" ModelName="CL65EJA" />
+<ModelMatchRule CallsignPrefix="EJA" TypeCode="GL7T" ModelName="GLEXEJA" />
 </ModelMatchRuleSet>

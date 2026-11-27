@@ -63,6 +63,8 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("MAL", "B752")], "fedex_group.vmr")
         self.assertEqual(seen[("DHA", "B752")], "dhl_group.vmr")
         self.assertEqual(seen[("NJE", "GLEX")], "netjets_group.vmr")  # NetJets Europe Global: was white, or a CRJ7 with FSLTL
+        self.assertEqual(seen[("NJE", "GL7T")], "netjets_group.vmr")
+        self.assertEqual(seen[("", "GL7T")], "business_jets.vmr")  # the MTL has no Global 7500: type-only rule to the GLEX
 
 
 class LicenseFilesTest(unittest.TestCase):
