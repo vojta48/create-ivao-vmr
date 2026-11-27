@@ -23,9 +23,9 @@
     settingsSent: "",       // the settings last sent to the server, so that unchanged settings are not written again
     rulesLoaded: false,     // my rules came from the server; only then are changes sent back
     rulesSent: "",          // my rules last sent to the server
-    step: 1,                // the wizard step on the screen (1 basic rules, 2 presets, 3 my rules)
+    step: 1,                // the wizard step on the screen (1 basic rules, 2 presets, 3 my rules, 4 output)
   };
-  const STEPS = 3;
+  const STEPS = 4;
   // vmr_gui.py keeps the settings in settings.json and my rules in my_rules.vmr (in AppData), because the
   // application window does not keep browser storage. Versions before 1.1.0 kept my rules in the browser under
   // this key; they are moved to the file once.
@@ -343,7 +343,7 @@
   }
 
   // ---------------------------------------------------------------- wizard steps
-  // The page is one wizard: 1 basic rules (the MTL), 2 presets, 3 my rules with the liveries and the output. All three
+  // The page is one wizard: 1 basic rules (the MTL), 2 presets, 3 my rules with the liveries, 4 the output. All four
   // steps are always on the page and keep their inputs; showStep only shows one and hides the others. Nothing in
   // `state` is touched here, so Back and Continue never lose a choice, and the step buttons jump anywhere directly.
   function showStep(step) {
@@ -358,6 +358,7 @@
     const summaries = stepSummaries({
       haveMtl: state.liveries.size > 0, mtlEnabled: state.mtl.enabled, mtlMode: state.mtl.mode, mtlCount: mtlRulesSelected().length,
       presets: state.presets.filter((p) => state.selectedPresets.has(p.id)).map((p) => p.name), rules: completeRules().length,
+      total: combinedRules().length, fileName: $("fileName").value,
     });
     for (let i = 1; i <= STEPS; i++) {
       const button = $("stepButton" + i);
@@ -367,7 +368,9 @@
       $("stepSummary" + i).textContent = summaries[i - 1];
     }
     $("back").hidden = state.step === 1;
+    // the last step has no Continue: in its place, bottom right, is the button that saves the VMR
     $("continue").hidden = state.step === STEPS;
+    $("save").hidden = state.step !== STEPS;
     $("stepPosition").textContent = "Step " + state.step + " of " + STEPS;
   }
 
@@ -377,7 +380,8 @@
       : (info.mtlMode === "all" ? "all liveries" : "standard liveries") + " (" + info.mtlCount + " rules)";
     const presets = info.presets.length === 0 ? "none ticked" : info.presets.length === 1 ? info.presets[0] : info.presets.length + " ticked: " + info.presets.join(", ");
     const rules = info.rules === 0 ? "no rules yet" : info.rules + (info.rules === 1 ? " rule" : " rules");
-    return [mtl, presets, rules];
+    const output = info.total === 0 ? "nothing to save yet" : (info.fileName || "custom.vmr") + ", " + info.total + (info.total === 1 ? " rule" : " rules");
+    return [mtl, presets, rules, output];
   }
 
   // ---------------------------------------------------------------- presets
@@ -853,7 +857,7 @@
   $("clearRules").addEventListener("click", () => { if (state.rules.length === 0 || confirm("Remove all your rules?")) { state.rules = []; state.selectedRule = -1; renderRules(); } });
   $("save").addEventListener("click", save);
   $("download").addEventListener("click", download);
-  $("fileName").addEventListener("input", saveDraft);
+  $("fileName").addEventListener("input", () => { saveDraft(); renderSteps(); });
   $("checkUpdates").addEventListener("change", () => { state.checkForUpdates = $("checkUpdates").checked; saveSettings(); });
   $("checkNow").addEventListener("click", () => checkForUpdate(true));
   $("search").addEventListener("input", renderLibrary);

@@ -17,6 +17,10 @@ body {
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
+  /* the wizard's Back / Continue / Save bar stays at the bottom of the window even when a step is short */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 header {
   display: flex;
@@ -71,7 +75,7 @@ dialog.update details pre { white-space: pre-wrap; max-height: 240px; overflow: 
 .step-button.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .step-button.current .num { background: var(--accent); color: #fff; }
 .step-button.done .num { background: var(--ok); color: #fff; }
-main { padding: 16px 20px 0; }
+main { padding: 16px 20px 0; flex: 1; }
 .step[hidden] { display: none; }
 .columns {
   display: grid;
@@ -95,6 +99,8 @@ main { padding: 16px 20px 0; }
 }
 .wizard-nav button { min-width: 120px; padding: 8px 16px; }
 .wizard-nav button[hidden] { visibility: hidden; display: inline-block; }
+/* Continue and Save share the bottom-right place: only the shown one takes space */
+.wizard-nav #continue[hidden], .wizard-nav #save[hidden] { display: none; }
 .row .spacer { flex: 1; }
 details.program { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px; }
 details.program summary { cursor: pointer; font-weight: 600; font-size: 13px; }

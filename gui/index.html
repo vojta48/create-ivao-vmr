@@ -25,12 +25,13 @@
 <dialog id="updateDialog" class="update"></dialog>
 <div id="notice" class="notice" role="alert" hidden></div>
 
-<!-- The page is a wizard of three steps. Every step keeps its own elements on the page; going back and forth only
+<!-- The page is a wizard of four steps. Every step keeps its own elements on the page; going back and forth only
      shows and hides them, so nothing that was chosen or typed is lost. The step buttons jump to any step directly. -->
 <nav class="steps" aria-label="Steps">
   <button type="button" class="step-button" id="stepButton1" data-step="1"><span class="num">1</span><span class="label">Basic rules</span><span class="summary" id="stepSummary1"></span></button>
   <button type="button" class="step-button" id="stepButton2" data-step="2"><span class="num">2</span><span class="label">Presets</span><span class="summary" id="stepSummary2"></span></button>
   <button type="button" class="step-button" id="stepButton3" data-step="3"><span class="num">3</span><span class="label">My rules</span><span class="summary" id="stepSummary3"></span></button>
+  <button type="button" class="step-button" id="stepButton4" data-step="4"><span class="num">4</span><span class="label">Output</span><span class="summary" id="stepSummary4"></span></button>
 </nav>
 
 <main>
@@ -72,7 +73,7 @@
   <!-- The livery clicked in a preset, shown over the page; closed with its button, Escape or a click outside it. -->
   <dialog id="liveryDialog" class="livery-dialog"></dialog>
 
-  <!-- Step 3: the user's own rules, the liveries to pick from, and the output -->
+  <!-- Step 3: the user's own rules and the liveries to pick from -->
   <section class="step" id="step3" data-step="3" hidden>
     <div class="columns">
       <div class="column rules">
@@ -95,20 +96,6 @@
           <span class="hint">Import a VMR:</span>
           <input type="file" id="importFile" accept=".vmr,.xml,text/xml" title="Load the rules of an existing VMR file into My rules so you can edit them">
         </div>
-
-        <h2>Output</h2>
-        <div id="outputSummary" class="hint"></div>
-        <div class="row">
-          <input type="text" id="fileName" value="custom.vmr">
-          <button id="save">Save to output folder</button>
-          <button id="download" class="secondary">Download</button>
-        </div>
-        <div id="outputFolder" class="hint"></div>
-        <div id="saveResult" class="hint"></div>
-        <details>
-          <summary>Show VMR text</summary>
-          <pre id="vmrText"></pre>
-        </details>
       </div>
 
       <div class="column library">
@@ -122,12 +109,32 @@
       </div>
     </div>
   </section>
+
+  <!-- Step 4: the output. The save button is the last button of the wizard, at the bottom right where Continue is. -->
+  <section class="step" id="step4" data-step="4" hidden>
+    <div class="column">
+      <h2>Output</h2>
+      <div id="outputSummary" class="hint"></div>
+      <div class="row">
+        <label for="fileName">File name</label>
+        <input type="text" id="fileName" value="custom.vmr">
+        <button id="download" class="secondary">Download</button>
+      </div>
+      <div id="outputFolder" class="hint"></div>
+      <div id="saveResult" class="hint"></div>
+      <details>
+        <summary>Show VMR text</summary>
+        <pre id="vmrText"></pre>
+      </details>
+    </div>
+  </section>
 </main>
 
 <footer class="wizard-nav">
   <button type="button" id="back" class="secondary">‹ Back</button>
   <span id="stepPosition" class="hint"></span>
   <button type="button" id="continue">Continue ›</button>
+  <button type="button" id="save" hidden>Save to output folder</button>
 </footer>
 
 <script src="/static/app.js"></script>

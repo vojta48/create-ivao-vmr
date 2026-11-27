@@ -51,9 +51,9 @@ class PageTest(unittest.TestCase):
         self.assertNotRegex(INDEX, r'(?:src|href)="https?://(?!mtl\.ivao\.aero)')
 
     def test_wizard_steps(self):
-        # The page is a wizard: 1 basic rules (the MTL rules), 2 presets, 3 my rules with the liveries and the output.
+        # The page is a wizard: 1 basic rules (the MTL rules), 2 presets, 3 my rules with the liveries, 4 the output.
         steps = re.findall(r'<section class="step" id="step(\d)" data-step="(\d)"', INDEX)
-        self.assertEqual(steps, [("1", "1"), ("2", "2"), ("3", "3")])
+        self.assertEqual(steps, [("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")])
         buttons = re.findall(r'id="stepButton(\d)" data-step="(\d)"', INDEX)
         self.assertEqual(buttons, steps)
         self.assertIn('id="back"', INDEX)
@@ -62,14 +62,25 @@ class PageTest(unittest.TestCase):
         self.assertRegex(INDEX, r'id="step1" data-step="1">')
         self.assertRegex(INDEX, r'id="step2" data-step="2" hidden>')
         self.assertRegex(INDEX, r'id="step3" data-step="3" hidden>')
+        self.assertRegex(INDEX, r'id="step4" data-step="4" hidden>')
         # each element sits in the step the user expects it in
         sections = re.split(r'<section class="step"', INDEX)[1:]
-        self.assertEqual(len(sections), 3)
+        self.assertEqual(len(sections), 4)
         for element in ("mtlEnabled", "mtlStandard", "mtlAll", "mtlFolder", "errors", "checkUpdates"):
             self.assertIn('id="%s"' % element, sections[0], element)
         self.assertIn('id="presets"', sections[1])
-        for element in ("rulesBody", "addRule", "importFile", "fileName", "save", "download", "search", "library"):
+        for element in ("rulesBody", "addRule", "importFile", "search", "library"):
             self.assertIn('id="%s"' % element, sections[2], element)
+        for element in ("outputSummary", "fileName", "download", "outputFolder", "saveResult", "vmrText"):
+            self.assertIn('id="%s"' % element, sections[3], element)
+        # the save button is the wizard's last button: bottom right, where Continue is on the other steps
+        nav = re.search(r'<footer class="wizard-nav">(.*?)</footer>', INDEX, re.S).group(1)
+        self.assertEqual(re.findall(r'id="(\w+)"', nav), ["back", "stepPosition", "continue", "save"])
+        self.assertIn('<button type="button" id="save" hidden>', nav)
+        render = js_function("renderSteps")
+        self.assertIn('$("continue").hidden = state.step === STEPS;', render)
+        self.assertIn('$("save").hidden = state.step !== STEPS;', render)
+        self.assertIn("const STEPS = 4;", APP_JS)
 
     def test_loading_screen(self):
         # shown from the first byte of the page (its words are in the HTML) until /api/state has answered
@@ -221,16 +232,16 @@ class JavaScriptTest(unittest.TestCase):
     def test_step_summaries(self):
         # the line under each step button: what is chosen in that step
         summaries = run_js(["stepSummaries"], "data.map(stepSummaries)", [
-            {"haveMtl": False, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 0, "presets": [], "rules": 0},
-            {"haveMtl": True, "mtlEnabled": False, "mtlMode": "all", "mtlCount": 0, "presets": ["smartwings group"], "rules": 1},
-            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "standard", "mtlCount": 1200, "presets": ["a", "b"], "rules": 2},
-            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 1500, "presets": [], "rules": 0},
+            {"haveMtl": False, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 0, "presets": [], "rules": 0, "total": 0, "fileName": "custom.vmr"},
+            {"haveMtl": True, "mtlEnabled": False, "mtlMode": "all", "mtlCount": 0, "presets": ["smartwings group"], "rules": 1, "total": 1, "fileName": "mine.vmr"},
+            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "standard", "mtlCount": 1200, "presets": ["a", "b"], "rules": 2, "total": 1230, "fileName": ""},
+            {"haveMtl": True, "mtlEnabled": True, "mtlMode": "all", "mtlCount": 1500, "presets": [], "rules": 0, "total": 1500, "fileName": "custom.vmr"},
         ])
         self.assertEqual(summaries, [
-            ["no MTL found", "none ticked", "no rules yet"],
-            ["MTL rules not added", "smartwings group", "1 rule"],
-            ["standard liveries (1200 rules)", "2 ticked: a, b", "2 rules"],
-            ["all liveries (1500 rules)", "none ticked", "no rules yet"],
+            ["no MTL found", "none ticked", "no rules yet", "nothing to save yet"],
+            ["MTL rules not added", "smartwings group", "1 rule", "mine.vmr, 1 rule"],
+            ["standard liveries (1200 rules)", "2 ticked: a, b", "2 rules", "custom.vmr, 1230 rules"],
+            ["all liveries (1500 rules)", "none ticked", "no rules yet", "custom.vmr, 1500 rules"],
         ])
 
     def test_loading_text(self):
