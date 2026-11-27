@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModelMatchRuleSet>
-<!-- Business jets missing from the IVAO MTL, shown as the closest one it has: the Global 5000 and 7500 as the Global 6000 (white, or VistaJet's own), and the Citation Latitude as the white Citation Longitude (same fuselage, NetJets' most common jet). -->
+<!-- Business jets missing from the IVAO MTL, shown as the closest one it has: the Global 5000 and 7500 as the Global 6000 (white, or VistaJet's own), and the Citation Latitude as the white Citation Longitude (the same family with a very similar fuselage). -->
 <ModelMatchRule CallsignPrefix="VJT" TypeCode="GL7T" ModelName="GLEXVJT" />
 <ModelMatchRule CallsignPrefix="VJT" TypeCode="GL5T" ModelName="GLEXVJT" />
 <ModelMatchRule TypeCode="GL7T" ModelName="GLEX" />
