@@ -66,7 +66,8 @@ class PresetFilesTest(unittest.TestCase):
         self.assertEqual(seen[("NJE", "GL7T")], "netjets_group.vmr")
         self.assertEqual(seen[("NJE", "GL5T")], "netjets_group.vmr")
         self.assertEqual(seen[("", "GL7T")], "business_jets.vmr")
-        self.assertEqual(seen[("", "GL5T")], "business_jets.vmr")  # the MTL has no Global 7500: type-only rule to the GLEX
+        self.assertEqual(seen[("", "GL5T")], "business_jets.vmr")
+        self.assertEqual(seen[("", "C68A")], "business_jets.vmr")  # Citation Latitude as the white Longitude  # the MTL has no Global 7500: type-only rule to the GLEX
 
 
 class LicenseFilesTest(unittest.TestCase):
